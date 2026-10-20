@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2b705">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Spotter">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>Build Spotter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one narrow column, like a build sheet clipped to a clipboard: photo on top, spec tag, then parts by system. */
+:root{
+  --bg:#f2f2ee; --surface:#ffffff; --ink:#16171a; --muted:#5b5d61; --line:#d8d8d1;
+  --accent:#f2b705; --on-accent:#16171a; --accent-text:#7d5c00;
+  --hi:#1f7a46; --mid:#a86a00; --lo:#7a7c80;
+  --display:"Saira Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111214; --surface:#1a1b1e; --ink:#ecebe5; --muted:#9b9b95; --line:#2c2d31;
+  --accent:#f5c518; --on-accent:#16171a; --accent-text:#f5c518;
+  --hi:#5fd08f; --mid:#f0b24a; --lo:#8d8f93; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111214; --surface:#1a1b1e; --ink:#ecebe5; --muted:#9b9b95; --line:#2c2d31;
+  --accent:#f5c518; --on-accent:#16171a; --accent-text:#f5c518;
+  --hi:#5fd08f; --mid:#f0b24a; --lo:#8d8f93; color-scheme:dark}
+
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);-webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);text-transform:uppercase;letter-spacing:.02em;margin:0;text-wrap:balance;line-height:1.05}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:2rem;font-weight:800}
+h1 span{background:var(--accent);color:var(--on-accent);padding:0 .25em;margin-left:.1em}
+.tag{font:600 .72rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+p{margin:0}
+.muted{color:var(--muted)}
+
+.capture,.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.shot{position:relative;aspect-ratio:16/10;max-width:100%;background:repeating-linear-gradient(135deg,transparent 0 14px,color-mix(in srgb,var(--line) 55%,transparent) 14px 15px);display:grid;place-items:center}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shot .empty{text-align:center;padding:24px;display:flex;flex-direction:column;gap:6px;align-items:center}
+.shot .empty strong{font:700 1.4rem/1.1 var(--display);text-transform:uppercase}
+.shot.drag{outline:3px dashed var(--accent);outline-offset:-10px}
+.actions{display:flex;gap:10px;padding:14px;flex-wrap:wrap;border-top:1px solid var(--line)}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 .95rem/1 var(--body);padding:12px 16px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;text-transform:none;letter-spacing:0}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(.95)}
+.btn.small{padding:8px 11px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grow{flex:1 1 140px}
+.status{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line);font-size:.95rem}
+.status.err{color:var(--mid)}
+.spin{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite;flex:none}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+
+.spec{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--accent);border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.spec h2{font-size:1.9rem;font-weight:800;min-width:0;overflow-wrap:anywhere}
+.namerow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.nameedit{display:flex;flex-direction:column;gap:10px}
+.nameedit .row{display:flex;gap:8px;flex-wrap:wrap}
+.nameedit input{font:700 1.4rem/1.2 var(--display);text-transform:uppercase;letter-spacing:.02em}
+.override{font:600 .7rem/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-text)}
+.specgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 16px}
+.specgrid div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.specgrid b{font:600 .95rem/1.3 var(--mono);overflow-wrap:anywhere}
+.example{display:inline-block;font:600 .7rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;border:1px dashed var(--muted);color:var(--muted);padding:5px 7px;border-radius:3px;align-self:flex-start}
+.linkrow{display:flex;gap:8px;flex-wrap:wrap}
+.lnk{font:600 .82rem/1 var(--body);color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:3px;padding:8px 10px;display:inline-flex;gap:6px;align-items:center}
+.lnk:hover{border-color:var(--ink)}
+.lnk.main{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.lnk svg{width:12px;height:12px}
+
+.system{display:flex;flex-direction:column}
+.system h3{font-size:1.15rem;font-weight:700;display:flex;justify-content:space-between;align-items:baseline;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.part{padding:14px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.ptop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.pname{font-weight:600;font-size:1.08rem;line-height:1.3;min-width:0}
+.pdetail{font:400 .88rem/1.4 var(--mono);color:var(--accent-text)}
+.conf{flex:none;font:600 .68rem/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:5px 7px;border-radius:3px;border:1px solid currentColor}
+.conf.high{color:var(--hi)} .conf.medium{color:var(--mid)} .conf.low{color:var(--lo)}
+.evidence{font-size:.92rem;color:var(--muted)}
+.alts{font-size:.88rem;color:var(--muted)}
+.alts em{font-style:normal;color:var(--ink)}
+
+details.refine{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+details.refine summary{cursor:pointer;padding:14px 16px;font:700 1.1rem/1.1 var(--display);text-transform:uppercase;list-style:none;display:flex;justify-content:space-between;gap:10px}
+details.refine summary::-webkit-details-marker{display:none}
+details.refine summary::after{content:"+";font-family:var(--mono)}
+details.refine[open] summary::after{content:"–"}
+.form{padding:0 16px 16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.form .full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:5px;font:600 .72rem/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+input,textarea,select{font:400 1rem/1.4 var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px 11px;width:100%;box-sizing:border-box}
+textarea{min-height:64px;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 .82rem/1 var(--body);padding:8px 11px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.note{font-size:.88rem;color:var(--muted)}
+.ok{color:var(--hi)}
+@media (max-width:480px){.form{grid-template-columns:1fr}}
+
+.tip{font-size:.92rem;border-top:1px dashed var(--line);padding-top:12px}
+.recent{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.recent button{flex:none;width:84px;border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:0;cursor:pointer;overflow:hidden;text-align:left;color:var(--ink)}
+.recent img{width:84px;height:56px;object-fit:cover;display:block}
+.recent span{display:block;font:600 .68rem/1.2 var(--mono);padding:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+footer{font-size:.82rem;color:var(--muted)}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>Build<span>Spotter</span></h1>
+    <button class="btn small" id="settingsBtn" hidden>AI settings</button>
+  </header>
+
+  <details class="refine" id="settings" hidden>
+    <summary>AI settings</summary>
+    <form class="form" id="settingsForm">
+      <p class="full note">This app sends your photo to the AI service you pick, using your own API key. The key stays on this device.</p>
+      <label class="f">Provider
+        <select id="s-provider">
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="openai">OpenAI</option>
+          <option value="gemini">Google Gemini</option>
+        </select>
+      </label>
+      <label class="f">Model<input id="s-model" autocomplete="off" spellcheck="false"></label>
+      <label class="f full">API key<input id="s-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key"></label>
+      <div class="full linkrow">
+        <button class="btn primary" type="submit">Save settings</button>
+        <a class="lnk" id="keyLink" target="_blank" rel="noopener" href="#">Get a key</a>
+      </div>
+      <p class="full note" id="settingsMsg"></p>
+    </form>
+  </details>
+
+  <form class="panel form" id="accessForm" hidden style="padding-top:16px">
+    <label class="f full">Access code<input id="a-code" type="password" autocomplete="off" placeholder="Ask the app owner"></label>
+    <div class="full linkrow"><button class="btn primary" type="submit">Save code</button></div>
+    <p class="full note" id="accessMsg">This app needs an access code. You only enter it once on this device.</p>
+  </form>
+
+  <section class="capture" aria-label="Photo">
+    <div class="shot" id="shot">
+      <div class="empty" id="emptyShot">
+        <strong>Snap a car or a part</strong>
+        <p class="muted">For a car, get the wheels, stance and side profile in frame. For a part, fill the frame and include any logos or stamps.</p>
+      </div>
+      <img id="preview" alt="Your car photo" hidden>
+    </div>
+    <div class="actions">
+      <label class="btn primary grow" for="cam">Take photo</label>
+      <input id="cam" type="file" accept="image/*" capture="environment" hidden>
+      <label class="btn grow" for="pick">Choose photo</label>
+      <input id="pick" type="file" accept="image/*" hidden>
+      <button class="btn grow" id="analyze" disabled>Identify parts</button>
+    </div>
+    <div class="status" id="status" hidden></div>
+  </section>
+
+  <div id="results"></div>
+
+  <details class="refine" id="refine">
+    <summary>Narrow it down</summary>
+    <form class="form" id="form">
+      <div class="full" style="display:flex;flex-direction:column;gap:6px">
+        <span class="tag">Focus on</span>
+        <div class="chips" id="chips"></div>
+      </div>
+      <label class="f full">Anything you already know<textarea id="f-notes" placeholder="e.g. Bronze wheels look like TE37s, it sat really low, loud exhaust"></textarea></label>
+      <div class="full linkrow">
+        <button class="btn primary" type="submit" id="refineBtn">Update results</button>
+        <button class="btn" type="button" id="clearBtn">Clear</button>
+      </div>
+      <p class="full note">All optional. To fix the car's name, tap Edit name on the result card.</p>
+    </form>
+  </details>
+
+  <section id="recentWrap" hidden style="display:flex;flex-direction:column;gap:8px">
+    <span class="tag">Recent spots</span>
+    <div class="recent" id="recent"></div>
+  </section>
+
+  <footer>Part IDs are visual best guesses. Confirm fitment (bolt pattern, offset, year range) before you buy.</footer>
+</div>
+
+<script>
+const CATS=["Wheels","Tires","Suspension","Brakes","Aero & Body","Lighting","Exhaust","Engine","Interior","Other"];
+const PROVIDERS={
+  anthropic:{model:"claude-sonnet-5-5",key:"https://console.anthropic.com/settings/keys"},
+  openai:{model:"gpt-5.5",key:"https://platform.openai.com/api-keys"},
+  gemini:{model:"gemini-3.6-flash",key:"https://aistudio.google.com/apikey"}
+};
+const $=id=>document.getElementById(id);
+const state={mode:"pending",sample:null,img:null,thumb:null,current:null,override:"",editing:false,ctl:null,focus:new Set()};
+
+const EXAMPLE={is_vehicle:true,
+  vehicle:{year:"2018–2021",make:"Subaru",model:"WRX STI",trim:"VA generation",color:"WR Blue Pearl",confidence:"high"},
+  summary:"Time-attack style street build: lowered on coilovers with bronze forged wheels and a front lip.",
+  parts:[
+    {category:"Wheels",name:"Volk Racing TE37 Saga",detail:"18x9.5 +38 · 5x114.3 · Bronze",confidence:"medium",evidence:"Six straight spokes with machined RAYS stamp at the lip and bronze finish.",query:"Volk Racing TE37 Saga 18x9.5 bronze",alternatives:["Enkei RPF1","Konig Hypergram"]},
+    {category:"Tires",name:"200-treadwear summer tire",detail:"265/35R18",confidence:"low",evidence:"Wide shoulder blocks and minimal sidewall stretch.",query:"265/35R18 200 treadwear tire",alternatives:["Falken Azenis RT660","Yokohama Advan A052"]},
+    {category:"Suspension",name:"Coilovers, lowered about 1.5 in",detail:"Roughly 2 finger fender gap",confidence:"medium",evidence:"Even drop front and rear, wheels tucked under fenders without sag.",query:"Subaru WRX STI VA coilovers",alternatives:["KW V3","BC Racing BR"]},
+    {category:"Aero & Body",name:"Front lip splitter",detail:"Matte carbon",confidence:"medium",evidence:"Separate dark lip below the factory bumper with visible weave.",query:"WRX STI VA carbon front lip",alternatives:[]}
+  ],
+  photo_tips:"A straight-on wheel shot would confirm the spoke stamp and size."};
+
+/* ---------- storage (this device only) ---------- */
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}}};
+
+/* ---------- helpers ---------- */
+const ICON='<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2h6v6M10 2 3 9"/></svg>';
+const enc=s=>encodeURIComponent(String(s).trim().replace(/\s+/g," "));
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const carName=v=>[v.year,v.make,v.model].filter(Boolean).join(" ").replace(/–/g,"-");
+const fullName=v=>[carName(v),v.trim].filter(Boolean).join(" ");
+function blobToDataURL(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)})}
+function dataURLToBlob(u){const [h,d]=u.split(",");const bin=atob(d);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:(h.match(/:(.*?);/)||[])[1]||"image/jpeg"})}
+async function resize(blob,max,q){
+  try{const bmp=await createImageBitmap(blob,{imageOrientation:"from-image"});
+    const s=Math.min(1,max/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");
+    c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||blob),"image/jpeg",q));
+  }catch{return blob}
+}
+
+/* ---------- links ---------- */
+function partLinks(p,v){
+  const car=[v.make,v.model].filter(Boolean).join(" ");const q=p.query||p.name;
+  const L=[["Shop",`https://www.google.com/search?tbm=shop&q=${enc(q)}`,1],["eBay",`https://www.ebay.com/sch/i.html?_nkw=${enc(q)}`],
+    [car?"On this car":"Photos",`https://www.google.com/search?tbm=isch&q=${enc((q+" "+car).trim())}`]];
+  if(["Wheels","Tires","Suspension"].includes(p.category))
+    L.push(["Fitment gallery",`https://www.google.com/search?q=${enc((car+" "+q).trim()+" site:fitmentindustries.com OR site:customwheeloffset.com")}`]);
+  else L.push([car?"Forums":"Reviews",`https://www.google.com/search?q=${enc((car+" "+q).trim()+" install review")}`]);
+  return L.map(([t,h,m])=>`<a class="lnk${m?" main":""}" href="${h}" target="_blank" rel="noopener">${t}${ICON}</a>`).join("");
+}
+
+/* ---------- render ---------- */
+function render(){
+  const r=state.current, box=$("results"), isExample=r===EXAMPLE;
+  if(!r){box.innerHTML="";return}
+  const subj=subjectOf(r);
+  if(subj==="none"){
+    box.innerHTML=`<div class="spec"><h2>No car or parts found</h2><p class="muted">${esc(r.summary||"Try a photo where the car or part fills more of the frame.")}</p></div>`;return}
+  const v=r.vehicle||{}, hasCar=!!(v.make||v.model);
+  const groups=CATS.map(c=>[c,(r.parts||[]).filter(p=>(CATS.includes(p.category)?p.category:"Other")===c)]).filter(g=>g[1].length);
+  const label=state.override?'<span class="override">Car name set by you</span>'
+    :subj==="parts"?(hasCar?`Parts photo · car ${esc(v.confidence||"")} confidence`:"Parts photo")
+    :`Identified vehicle · ${esc(v.confidence||"")} confidence`;
+  box.innerHTML=`<div style="display:flex;flex-direction:column;gap:20px">
+    <div class="spec">
+      ${isExample?'<span class="example">Example result · add a photo to spot your own</span>':""}
+      <span class="tag">${label}</span>
+      ${nameBlock(hasCar?fullName(v):"",subj)}
+      <div class="specgrid">
+        ${hasCar?`<div><span class="tag">Trim / gen</span><b>${esc(v.trim||"—")}</b></div>
+        <div><span class="tag">Color</span><b>${esc(v.color||"—")}</b></div>`:""}
+        <div><span class="tag">Parts spotted</span><b>${(r.parts||[]).length}</b></div>
+      </div>
+      ${r.summary?`<p>${esc(r.summary)}</p>`:""}
+      ${hasCar?`<div class="linkrow">
+        <a class="lnk" href="https://www.google.com/search?q=${enc(fullName(v)+" OEM parts")}" target="_blank" rel="noopener">OEM parts${ICON}</a>
+        <a class="lnk" href="https://www.google.com/search?tbm=isch&q=${enc(fullName(v)+" modified")}" target="_blank" rel="noopener">Similar builds${ICON}</a>
+      </div>`:""}
+    </div>
+    ${groups.map(([c,ps])=>`<section class="system"><h3>${esc(c)}<span class="tag">${ps.length}</span></h3>
+      ${ps.map(p=>`<article class="part">
+        <div class="ptop"><div class="pname">${esc(p.name)}${p.detail?`<div class="pdetail">${esc(p.detail)}</div>`:""}</div>
+        <span class="conf ${esc(p.confidence)}">${esc(p.confidence)}</span></div>
+        ${p.evidence?`<p class="evidence">${esc(p.evidence)}</p>`:""}
+        ${p.alternatives&&p.alternatives.filter(Boolean).length?`<p class="alts">Could also be: ${p.alternatives.filter(Boolean).map(a=>`<em>${esc(a)}</em>`).join(", ")}</p>`:""}
+        <div class="linkrow">${partLinks(p,v)}</div></article>`).join("")}</section>`).join("")}
+    ${r.photo_tips?`<p class="tip muted"><strong style="color:var(--ink)">Better shot:</strong> ${esc(r.photo_tips)}</p>`:""}
+  </div>`;
+  wireName();
+}
+function subjectOf(r){return r.subject||(r.is_vehicle===false?"none":"car")}
+function nameBlock(name,subj){
+  const parts=subj==="parts";
+  if(state.editing) return `<form class="nameedit" id="nameForm">
+      <label class="f" for="nameInput">${parts?"Car these parts are on or for":"Correct car name"}</label>
+      <input id="nameInput" value="${esc(state.override||name)}" placeholder="e.g. 2019 Subaru WRX STI" autocomplete="off">
+      <div class="row"><button class="btn primary" type="submit">Save and re-check parts</button><button class="btn" type="button" id="nameCancel">Cancel</button></div>
+      <p class="note">The photo is analyzed again with this car, so factory parts, sizes and fitment match it.</p>
+    </form>`;
+  const title=name||(parts?"Parts photo":"Unknown vehicle");
+  const btn=name?"Edit name":(parts?"Add car":"Edit name");
+  return `<div class="namerow"><h2>${esc(title)}</h2><button class="btn small" id="nameEdit" type="button">${btn}</button></div>`;
+}
+function wireName(){
+  $("nameEdit")?.addEventListener("click",()=>{state.editing=true;render();const i=$("nameInput");i.focus();i.select()});
+  $("nameCancel")?.addEventListener("click",()=>{state.editing=false;render()});
+  $("nameForm")?.addEventListener("submit",e=>{e.preventDefault();
+    const n=$("nameInput").value.trim();if(!n){$("nameInput").focus();return}
+    if(!state.img){status("Add a photo first. The name is used together with the photo.",true);return}
+    state.override=n;state.editing=false;render();analyze();
+  });
+}
+
+/* ---------- chips ---------- */
+$("chips").innerHTML=CATS.filter(c=>c!=="Other").map(c=>`<button type="button" class="chip" aria-pressed="false" data-c="${c}">${c}</button>`).join("");
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
+  const on=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",on);on?state.focus.add(b.dataset.c):state.focus.delete(b.dataset.c)});
+
+/* ---------- photo ---------- */
+async function setPhoto(file){
+  if(!file||!file.type.startsWith("image/")){status("That file isn't an image. Pick a JPG, PNG or HEIC photo.",true);return}
+  state.img=await resize(file,1600,.88);state.thumb=await blobToDataURL(await resize(state.img,168,.7));
+  showPreview(URL.createObjectURL(state.img));
+  state.override="";state.editing=false;
+  $("analyze").disabled=false;analyze();
+}
+function showPreview(src){$("preview").src=src;$("preview").hidden=false;$("emptyShot").hidden=true}
+["cam","pick"].forEach(id=>$(id).addEventListener("change",e=>{setPhoto(e.target.files[0]);e.target.value=""}));
+const shot=$("shot");
+shot.addEventListener("dragover",e=>{e.preventDefault();shot.classList.add("drag")});
+shot.addEventListener("dragleave",()=>shot.classList.remove("drag"));
+shot.addEventListener("drop",e=>{e.preventDefault();shot.classList.remove("drag");setPhoto(e.dataTransfer.files[0])});
+document.addEventListener("paste",e=>{const f=[...(e.clipboardData?.files||[])][0];if(f)setPhoto(f)});
+
+/* ---------- status ---------- */
+function status(msg,err,busy){
+  const s=$("status");if(!msg){s.hidden=true;return}
+  s.hidden=false;s.className="status"+(err?" err":"");
+  s.innerHTML=(busy?'<span class="spin"></span>':"")+`<span>${esc(msg)}</span>`+(busy?'<button class="btn small" id="stop" style="margin-left:auto">Stop</button>':"");
+  if(busy)$("stop").onclick=()=>state.ctl?.abort();
+}
+
+/* ---------- prompt ---------- */
+/*PROMPT-START*/
+function makePrompt(o){
+  return `You are an expert at identifying cars and car parts from photos (wheels, tires, suspension, brakes, aero, lighting, exhaust, engine, interior).
+The attached image is a photo the user took. It is either:
+- a CAR (whole or partial): identify the vehicle from the photo alone, then every visible part an enthusiast might want to buy (aftermarket parts, and notable factory parts such as "Factory 18in STI BBS wheels" when that's what's fitted). Set "subject" to "car".
+- one or more PARTS on their own (a loose wheel, a coilover, an exhaust, a part on a shelf or in a box, or a close-up where the car itself can't be identified): identify each part. Set "subject" to "parts". If the photo shows what car the parts are on or for, fill "vehicle"; otherwise set "vehicle" to null.
+- neither: set "subject" to "none" and say what you see in "summary".
+${o.override?`
+IMPORTANT: The user says the car is: "${o.override}" (the car in the photo, or the car these parts are on). Treat this as correct even if the photo made you think otherwise. Fill the vehicle fields to match it (split into year, make, model, trim). Re-check every part against this exact car: decide factory vs aftermarket using this model's real factory equipment, use its correct bolt pattern, hub bore and factory wheel/tire sizes, and prefer parts made for this platform.
+`:""}
+Rules:
+- Only list parts you can actually see or that are strongly implied (ride height implies coilovers vs lowering springs). Never invent hidden parts.
+- Be specific: brand and model when the design or branding is recognizable. Read any visible text, stamps, stickers or sidewall markings.
+- Give the specifications in "detail", separated by " · ": for wheels diameter x width, offset, bolt pattern, finish, construction (forged/flow-formed/cast); for tires size, model, treadwear if readable; for suspension type and estimated drop; for brakes caliper brand and piston count; otherwise the size, material and finish. Say "est." for estimates.
+- If unsure of the brand, describe the style and give 1-3 likely candidates in "alternatives".
+- confidence is "high" (clear branding or unmistakable design), "medium" (strong visual match), or "low" (educated guess).
+- "query" is the best shopping search string for that exact part (brand model size finish), without the car name.
+- category must be one of: ${CATS.join(", ")}.
+${o.notes?`\nThe user adds: ${o.notes}\n`:""}${o.focus.length?`\nThe user mainly wants: ${o.focus.join(", ")}. Cover those in the most depth, but still list other visible parts.\n`:""}
+Reply with only JSON in this shape:
+{"subject":"car|parts|none","vehicle":{"year":"2018-2021","make":"","model":"","trim":"","color":"","confidence":"high|medium|low"},"summary":"one sentence describing the build, or what the parts are","parts":[{"category":"Wheels","name":"","detail":"18x9.5 · +38 est. · 5x114.3 · bronze · forged","confidence":"medium","evidence":"what in the photo shows this","query":"","alternatives":[""]}],"photo_tips":"one sentence on what extra angle would improve identification, or empty"}`;
+}
+/*PROMPT-END*/
+function promptInput(){return {override:state.override,notes:$("f-notes").value.trim(),focus:[...state.focus]}}
+function buildPrompt(){return makePrompt(promptInput())}
+
+/* ---------- AI backends ---------- */
+function parseJSON(t){
+  t=String(t||"").trim();
+  try{return JSON.parse(t)}catch{}
+  const f=t.match(/```(?:json)?\s*([\s\S]*?)```/);if(f){try{return JSON.parse(f[1])}catch{}}
+  const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1))}catch{}}
+  throw {code:"invalid_json"};
+}
+const ERR={not_granted:"Claude access wasn't allowed for this page, so it can't read photos.",sampling_disabled:"Claude isn't available on this account.",
+  rate_limited:"Too many requests right now. Wait a minute and try again.",image_rejected:"That photo couldn't be read. Try a JPG or PNG under 20 MB.",
+  images_unavailable:"This view can't send photos to Claude.",refused:"The AI couldn't analyze this photo. Try a different one.",
+  invalid_json:"The answer came back garbled. Tap Identify parts to try again.",session_expired:"Sign in to Claude again, then retry.",
+  no_key:"Add an API key in AI settings to analyze photos.",need_code:"Enter the access code to analyze photos.",
+  bad_code:"That access code didn't work. Check it and try again.",server_key:"The app's server isn't set up yet: its API key is missing or invalid.",
+  too_large:"That photo is too large to send. Try a different one.",bad_key:"The API key was rejected. Check it in AI settings.",
+  network:"Couldn't reach the AI service. Check your connection and try again."};
+
+async function askClaude(prompt,signal,onText){
+  return await state.sample.json(prompt,{images:state.img,signal,onText});
+}
+const API_PATH="/api/analyze";
+async function askServer(signal){
+  const image=(await blobToDataURL(await resize(state.img,1280,.85))).split(",")[1];
+  let res;
+  try{res=await fetch(API_PATH,{method:"POST",signal,headers:{"content-type":"application/json","x-access-code":store.get("spotter-code","")},
+    body:JSON.stringify({image,...promptInput()})})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  let j={};try{j=await res.json()}catch{}
+  if(!res.ok){
+    if(j.code==="bad_code"){state.needsCode=true;$("accessForm").hidden=false;try{localStorage.removeItem("spotter-code")}catch{}}
+    throw{code:j.code||"api",message:j.message||`Server error ${res.status}`};
+  }
+  return j.result;
+}
+async function askAPI(prompt,signal){
+  const s=getSettings();if(!s.key)throw{code:"no_key"};
+  const data=(await blobToDataURL(state.img)).split(",")[1];
+  let url,headers={"content-type":"application/json"},body,pick;
+  if(s.provider==="anthropic"){
+    url="https://api.anthropic.com/v1/messages";
+    Object.assign(headers,{"x-api-key":s.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"});
+    body={model:s.model,max_tokens:4096,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data}},{type:"text",text:prompt}]}]};
+    pick=j=>(j.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
+  }else if(s.provider==="openai"){
+    url="https://api.openai.com/v1/chat/completions";headers.authorization="Bearer "+s.key;
+    body={model:s.model,response_format:{type:"json_object"},messages:[{role:"user",content:[{type:"text",text:prompt},{type:"image_url",image_url:{url:"data:image/jpeg;base64,"+data}}]}]};
+    pick=j=>j.choices?.[0]?.message?.content;
+  }else{
+    url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model)}:generateContent`;headers["x-goog-api-key"]=s.key;
+    body={contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}};
+    pick=j=>(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("");
+  }
+  let res;
+  try{res=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  let j={};try{j=await res.json()}catch{}
+  if(!res.ok){
+    if(res.status===401||res.status===403)throw{code:"bad_key"};
+    if(res.status===429)throw{code:"rate_limited"};
+    const m=j.error?.message||j.error?.type||`HTTP ${res.status}`;
+    throw{code:"api",message:`The AI service said: ${m}`};
+  }
+  return parseJSON(pick(j));
+}
+
+/* ---------- analyze ---------- */
+async function analyze(){
+  if(!state.img)return;
+  if(state.mode==="pending"){status("Starting up… try again in a second.");return}
+  if(state.mode==="none"){status("Photo analysis isn't available in this view. Open the page in the Claude app or claude.ai.",true);return}
+  if(state.mode==="api"&&!getSettings().key){status(ERR.no_key,true);$("settings").open=true;$("s-key").focus();return}
+  if(state.mode==="server"&&state.needsCode&&!store.get("spotter-code","")){status(ERR.need_code,true);$("accessForm").hidden=false;$("a-code").focus();return}
+  state.ctl?.abort();const ctl=state.ctl=new AbortController();
+  $("analyze").disabled=true;$("refineBtn").disabled=true;
+  status(state.override?`Re-checking parts as a ${state.override}…`:"Looking over the car…",false,true);
+  try{
+    const r=state.mode==="claude"
+      ?await askClaude(buildPrompt(),ctl.signal,()=>status("Writing up the parts list…",false,true))
+      :state.mode==="server"?await askServer(ctl.signal)
+      :await askAPI(buildPrompt(),ctl.signal);
+    if(!r||typeof r!=="object")throw{code:"invalid_json"};
+    if(ctl!==state.ctl)return;
+    state.current=r;state.editing=false;render();status("");saveRecent();
+    $("results").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"});
+  }catch(e){
+    if(ctl!==state.ctl)return;
+    if(e?.code==="cancelled")status("Stopped.");
+    else status(e?.message&&e.code==="api"?e.message:(ERR[e?.code]||"Something went wrong. Try again."),true);
+  }finally{if(ctl===state.ctl){$("analyze").disabled=!state.img;$("refineBtn").disabled=false}}
+}
+$("analyze").onclick=analyze;
+$("form").addEventListener("submit",e=>{e.preventDefault();
+  if(!state.img){status("Add a photo first, then update the results.",true);return}
+  analyze()});
+$("clearBtn").onclick=()=>{$("f-notes").value="";state.focus.clear();document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"))};
+
+/* ---------- recent (this device only) ---------- */
+async function saveRecent(){
+  const r=state.current;if(!r||subjectOf(r)==="none"||!state.img)return;
+  const img=await blobToDataURL(await resize(state.img,1024,.78));
+  let list=store.get("spotter-recent2",[]);
+  if(state.recentIndex!=null&&list[state.recentIndex]?.img===state.recentImg)list.splice(state.recentIndex,1);
+  list=[{t:state.thumb,img,r,o:state.override,at:Date.now()},...list].slice(0,6);
+  while(list.length&&!store.set("spotter-recent2",list))list.pop();
+  state.recentIndex=0;state.recentImg=img;drawRecent();
+}
+function drawRecent(){const list=store.get("spotter-recent2",[]);$("recentWrap").hidden=!list.length;
+  $("recent").innerHTML=list.map((x,i)=>`<button type="button" data-i="${i}" aria-label="Open ${esc(carName(x.r.vehicle||{}))}">${x.t?`<img src="${x.t}" alt="">`:""}<span>${esc((x.r.vehicle||{}).model||(x.r.parts||[])[0]?.name||"Spot")}</span></button>`).join("")}
+$("recent").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const i=+b.dataset.i;const x=store.get("spotter-recent2",[])[i];if(!x)return;
+  state.current=x.r;state.override=x.o||"";state.editing=false;state.thumb=x.t;
+  state.img=x.img?dataURLToBlob(x.img):null;state.recentIndex=i;state.recentImg=x.img;
+  if(x.img)showPreview(x.img);render();$("analyze").disabled=!state.img;status("");
+  window.scrollTo({top:0,behavior:"auto"})});
+
+/* ---------- settings (standalone mode) ---------- */
+function getSettings(){const s=store.get("spotter-ai",{});const p=PROVIDERS[s.provider]?s.provider:"anthropic";return{provider:p,model:s.model||PROVIDERS[p].model,key:s.key||""}}
+function fillSettings(){const s=getSettings();$("s-provider").value=s.provider;$("s-model").value=s.model;$("s-key").value=s.key;$("keyLink").href=PROVIDERS[s.provider].key}
+$("s-provider").addEventListener("change",e=>{const p=e.target.value;$("s-model").value=PROVIDERS[p].model;$("keyLink").href=PROVIDERS[p].key;
+  const saved=store.get("spotter-ai",{});$("s-key").value=saved.provider===p?saved.key||"":""});
+$("settingsForm").addEventListener("submit",e=>{e.preventDefault();
+  const p=$("s-provider").value;const ok=store.set("spotter-ai",{provider:p,model:$("s-model").value.trim()||PROVIDERS[p].model,key:$("s-key").value.trim()});
+  $("settingsMsg").innerHTML=ok?'<span class="ok">Saved on this device.</span>':"Couldn't save. Your browser may be blocking storage.";
+  if(ok)setTimeout(()=>{$("settings").open=false},700);
+  if(ok&&state.img&&state.current===EXAMPLE)analyze()});
+$("accessForm").addEventListener("submit",e=>{e.preventDefault();const c=$("a-code").value.trim();if(!c){$("a-code").focus();return}
+  if(store.set("spotter-code",c)){$("accessForm").hidden=true;status("");if(state.img)analyze()}
+  else $("accessMsg").textContent="Couldn't save. Your browser may be blocking storage."});
+$("settingsBtn").onclick=()=>{$("settings").open=!$("settings").open;if($("settings").open)$("s-key").focus()};
+
+/* ---------- boot ---------- */
+state.current=EXAMPLE;render();drawRecent();
+(async()=>{
+  if(window.claude){                                  // inside Claude: use the viewer's Claude
+    let s=null;try{s=await window.claude.use("sample")}catch{}
+    if(s){const lim=await s.limits().catch(()=>null);if(lim?.images){state.sample=s;state.mode="claude";return}}
+    state.mode="none";status("Photo analysis isn't available in this view. Open the page in the Claude app or claude.ai.",true);
+    $("analyze").disabled=true;return;
+  }
+  if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+  // hosted with the server function: the key lives on the server
+  try{
+    const res=await fetch(API_PATH,{cache:"no-store"});
+    const j=res.ok?await res.json():null;
+    if(j?.ok){
+      state.mode="server";state.needsCode=!!j.needsCode;
+      if(state.needsCode&&!store.get("spotter-code",""))$("accessForm").hidden=false;
+      if(state.img&&state.current===EXAMPLE)analyze();
+      return;
+    }
+  }catch{}
+  state.mode="api";                                   // no server: user's own API key
+  $("settings").hidden=false;$("settingsBtn").hidden=false;fillSettings();
+  if(!getSettings().key){$("settings").open=true;$("settingsMsg").textContent="Add an API key to start. You only do this once."}
+})();
+</script>
+
+</body>
+</html>

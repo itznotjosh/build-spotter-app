@@ -1,0 +1,6 @@
+# Build Spotter: static site in /public, AI server function in /netlify/functions.
+[build]
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
