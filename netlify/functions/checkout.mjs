@@ -14,6 +14,7 @@ export default async (req) => {
   try {
     const s = await stripe("POST", "checkout/sessions", {
       mode: "payment",
+      payment_method_types: { 0: "card" },        // cards (Apple Pay / Google Pay show up here too where available)
       success_url: `${origin}/?paid={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?canceled=1`,
       client_reference_id: user.id,
