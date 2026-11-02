@@ -1,4 +1,5 @@
 // /api/checkout  POST { pack: "p20" }  → { url } of a Stripe Checkout page for that credit pack.
+// Which payment methods appear (cards, Apple Pay…) is set in Stripe → Settings → Payment methods.
 // Prices live on the server (netlify/lib/accounts.mjs or the CREDIT_PACKS variable), never in the browser.
 import { accountsOn, paymentsOn, getUser, packs, stripe, CURRENCY, json } from "../lib/accounts.mjs";
 
@@ -14,7 +15,6 @@ export default async (req) => {
   try {
     const s = await stripe("POST", "checkout/sessions", {
       mode: "payment",
-      payment_method_types: { 0: "card" },        // cards (Apple Pay / Google Pay show up here too where available)
       success_url: `${origin}/?paid={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?canceled=1`,
       client_reference_id: user.id,
