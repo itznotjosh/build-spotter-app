@@ -1,0 +1,1416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#141210">
+<meta name="description" content="Take a photo of any car. Build Spotter names the car, lists the parts it can see, and links you to where to buy them.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Spotter">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>Build Spotter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap">
+<style>
+/* Build Spotter. One typeface (Archivo, three widths), a dark shop-floor background, and one loud surface:
+   the cream "show card" that names the car, like the spec card owners leave on the dash at a meet.
+   Amber is the working light: the main action, progress, and confidence dots. Nothing else is coloured. */
+:root{
+  --floor:#141210; --bench:#1d1a16; --bench-2:#262219;
+  --rule:rgba(236,229,214,.13); --rule-2:rgba(236,229,214,.3);
+  --paper:#ece5d6; --ink:#17140f; --ink-2:rgba(23,20,15,.66);
+  --text:#ece5d6; --text-2:#b9b1a1; --text-3:#938b7b;
+  --lamp:#e9ae3b; --lamp-hi:#f4c058; --lamp-ink:#1b1405; --bad:#f29179;
+  --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --gutter:max(20px,env(safe-area-inset-left,0px));
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--floor);-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--floor);color:var(--text);font:400 16px/1.5 var(--font);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,dl,dd,figure{margin:0}
+img{max-width:100%;display:block}
+a{color:inherit}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--lamp);outline-offset:3px;border-radius:4px}
+
+.page{max-width:600px;margin:0 auto;padding:0 var(--gutter) 40px}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
+.brand{appearance:none;border:0;padding:8px 11px 7px;border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer;font-weight:900;font-stretch:125%;font-size:13px;line-height:1;letter-spacing:.015em;text-transform:uppercase}
+.brand,.pill{white-space:nowrap}
+@media (max-width:350px){.brand{font-size:11.5px;padding:7px 9px 6px}.pill{padding:0 11px;font-size:13px;gap:6px}}
+.top-right{display:flex;align-items:center;gap:8px}
+.pill{appearance:none;display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--rule-2);background:transparent;font-weight:600;font-size:14px;cursor:pointer}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--lamp)}
+.pill.out::before{background:var(--bad)}
+.pill:hover{border-color:var(--paper)}
+
+/* buttons */
+.btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 20px;border-radius:12px;border:1px solid var(--rule-2);background:transparent;color:var(--text);font-weight:650;font-size:16px;line-height:1.1;text-decoration:none;text-align:center;cursor:pointer}
+.btn:hover{border-color:var(--paper)}
+.btn.primary{background:var(--lamp);border-color:var(--lamp);color:var(--lamp-ink);font-weight:750}
+.btn.primary:hover{background:var(--lamp-hi);border-color:var(--lamp-hi)}
+.btn.light{background:var(--paper);border-color:var(--paper);color:var(--ink)}
+.btn.light:hover{background:#f6f0e3}
+.btn.small{min-height:38px;padding:0 14px;border-radius:10px;font-size:14px;font-weight:600}
+.btn.big{min-height:58px;font-size:17px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn svg{flex:none}
+.textbtn{appearance:none;background:none;border:0;padding:6px 0;color:var(--text-2);font-size:14px;font-weight:500;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--rule-2);cursor:pointer}
+.textbtn:hover{color:var(--text);text-decoration-color:currentColor}
+.note{font-size:14px;line-height:1.5;color:var(--text-2)}
+
+/* home */
+.hero{padding:22px 0 8px;display:flex;flex-direction:column;gap:14px}
+.hero h1{font-weight:900;font-stretch:125%;font-size:clamp(31px,9.1vw,46px);line-height:.96;letter-spacing:-.015em;text-transform:uppercase;text-wrap:balance}
+.lede{font-size:17px;line-height:1.5;color:var(--text-2);max-width:34em}
+.cta{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.cta .btn{width:100%}
+.fine{font-size:14px;color:var(--text-2)}
+.fine .textbtn{padding:0;font-size:inherit}
+body:not(.touch) #camLabel{display:none}
+.drop-hint{display:none}
+body:not(.touch) .drop-hint{display:block}
+
+.sec{margin-top:44px;display:flex;flex-direction:column;gap:14px}
+.sec-head{display:flex;flex-direction:column;gap:4px}
+.sec-head h2{font-weight:750;font-stretch:108%;font-size:20px;line-height:1.2;letter-spacing:-.005em}
+.recent{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:0 calc(var(--gutter)*-1);padding-inline:var(--gutter);scrollbar-width:none}
+.recent::-webkit-scrollbar{display:none}
+.recent button{appearance:none;flex:none;width:132px;padding:0;background:var(--bench);border:1px solid var(--rule);border-radius:12px;overflow:hidden;text-align:left;cursor:pointer}
+.recent button:hover{border-color:var(--rule-2)}
+.recent img{width:100%;height:92px;object-fit:cover}
+.recent span{display:block;padding:8px 10px 10px;font-size:13px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* panels (setup, access code) */
+.panel{margin-top:22px;padding:18px;border-radius:14px;background:var(--bench);border:1px solid var(--rule);display:flex;flex-direction:column;gap:14px}
+.panel h2{font-weight:750;font-size:18px;line-height:1.25}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.fields .full{grid-column:1/-1}
+@media (max-width:480px){.fields{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;color:var(--text-2)}
+input,textarea,select{width:100%;background:var(--floor);color:var(--text);border:1px solid var(--rule-2);border-radius:10px;padding:13px 14px;font:400 16px/1.35 var(--font)}
+input::placeholder,textarea::placeholder{color:var(--text-3)}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--lamp);outline-offset:1px;border-radius:10px}
+textarea{min-height:84px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* photo */
+.photo{position:relative;overflow:hidden;border-radius:16px;background:#0c0b09}
+.photo img{width:100%;height:auto;max-height:64vh;object-fit:contain}
+.photo.scanning img{filter:brightness(.62) saturate(.8)}
+.scanline{position:absolute;left:0;right:0;top:4%;height:2px;background:var(--lamp);box-shadow:0 0 18px 3px rgba(233,174,59,.55);animation:scan 1.5s ease-in-out infinite alternate;pointer-events:none}
+@keyframes scan{from{top:4%}to{top:95%}}
+body.drag .droptarget{outline:2px dashed var(--lamp);outline-offset:6px;border-radius:16px}
+
+/* status line */
+.status{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px 12px 12px 16px;border-radius:12px;background:var(--bench);border:1px solid var(--rule);font-size:15px;font-weight:500;line-height:1.4}
+.status > span:not(.spin){flex:1;min-width:0}
+.status.err{border-color:rgba(242,145,121,.45);color:#f6c2b3}
+.status .btn{flex:none}
+.spin{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--rule-2);border-top-color:var(--lamp);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* result: show card */
+.result{display:flex;flex-direction:column}
+.result.busy{opacity:.4;transition:opacity .2s}
+.result.fresh .plate{animation:land .42s cubic-bezier(.2,.8,.2,1)}
+.result.fresh > :not(.plate){animation:fadein .5s .12s both}
+@keyframes land{from{transform:translateY(-14px);opacity:0}}
+@keyframes fadein{from{opacity:0}}
+.plate{background:var(--paper);color:var(--ink);border-radius:16px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:14px}
+.attached .photo{border-radius:16px 16px 0 0}
+.attached .plate{border-radius:0 0 16px 16px}
+.plate .yr{font-size:15px;font-weight:650;line-height:1.2;color:var(--ink-2)}
+.plate h2{font-weight:900;font-stretch:125%;font-size:clamp(25px,7.6vw,38px);line-height:.96;letter-spacing:-.012em;text-transform:uppercase;overflow-wrap:break-word;text-wrap:balance}
+.plate .namewrap{display:flex;flex-direction:column;gap:6px}
+.plate .top-line{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.imprint{font-weight:900;font-stretch:125%;font-size:9.5px;line-height:1;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+.facts{display:flex;flex-wrap:wrap;gap:10px 16px;padding-top:12px;border-top:1px solid rgba(23,20,15,.18)}
+.facts div{flex:1 1 76px;min-width:0}
+.facts div.wide{flex:1.8 1 100px}
+.facts dt{font-size:12.5px;font-weight:500;line-height:1.3;color:var(--ink-2)}
+.facts dd{font-size:15px;font-weight:650;line-height:1.3;overflow-wrap:anywhere}
+.match{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 2px 0;font-size:15px;font-weight:600}
+.match .textbtn{padding:4px 0}
+.conf{display:inline-flex;gap:3px;margin-right:9px;vertical-align:.08em}
+.conf i{width:7px;height:7px;border-radius:50%;background:var(--rule-2)}
+.conf.high i,.conf.medium i:nth-child(-n+2),.conf.low i:first-child{background:var(--lamp)}
+.summary{padding:12px 2px 0;font-size:16px;line-height:1.55;color:var(--text-2)}
+.carlinks{display:flex;gap:18px;flex-wrap:wrap;padding:10px 2px 0}
+.xl{font-size:14px;font-weight:550;color:var(--text-2);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--rule-2)}
+.xl:hover{color:var(--text);text-decoration-color:currentColor}
+.nameedit{margin-top:14px;padding:16px;border-radius:14px;background:var(--bench);border:1px solid var(--rule);display:flex;flex-direction:column;gap:12px}
+.banner{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:14px;font-weight:600;color:var(--text-2)}
+
+/* parts */
+.group{margin-top:30px}
+.group-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--rule-2)}
+.group-head h3{font-weight:900;font-stretch:125%;font-size:17px;line-height:1.15;letter-spacing:.005em;text-transform:uppercase}
+.group-head span{font-size:14px;color:var(--text-3)}
+.part{padding:16px 0 18px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:7px}
+.part h4{margin:0;font-weight:700;font-size:17.5px;line-height:1.3}
+.spec{display:flex;flex-wrap:wrap;gap:1px 16px;font-size:14.5px;line-height:1.45;color:var(--text)}
+.why{font-size:14.5px;line-height:1.5;color:var(--text-2)}
+.why b{font-weight:650;color:var(--text)}
+.alts{font-size:14.5px;line-height:1.5;color:var(--text-2)}
+.alts em{font-style:normal;color:var(--text)}
+.plinks{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;margin-top:6px}
+.shop{display:inline-flex;align-items:center;min-height:38px;padding:0 15px;border-radius:10px;background:var(--paper);color:var(--ink);font-size:14.5px;font-weight:700;text-decoration:none}
+.shop:hover{background:#f6f0e3}
+.tip{margin-top:22px;padding:14px 16px;border-radius:12px;background:var(--bench);font-size:15px;line-height:1.5;color:var(--text-2)}
+.tip b{color:var(--text);font-weight:650}
+.caveat{margin-top:16px;font-size:13.5px;line-height:1.5;color:var(--text-3)}
+
+/* tell us more */
+details.more{margin-top:26px;border-radius:14px;background:var(--bench);border:1px solid var(--rule)}
+details.more summary{cursor:pointer;list-style:none;min-height:56px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:650;font-size:16px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--text-2);border-bottom:2px solid var(--text-2);transform:rotate(45deg) translate(-2px,-2px);flex:none}
+details.more[open] summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
+.more-body{padding:2px 16px 18px;display:flex;flex-direction:column;gap:16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{appearance:none;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--rule-2);background:transparent;font-size:14px;font-weight:550;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.fl{font-size:14px;font-weight:600;color:var(--text-2);display:flex;flex-direction:column;gap:8px}
+
+/* scan-again dock */
+.dock{position:sticky;bottom:0;z-index:5;margin:28px calc(var(--gutter)*-1) 0;padding:12px var(--gutter) calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,rgba(20,18,16,0),var(--floor) 26%);display:none;gap:10px}
+#scan.done .dock{display:flex}
+#scan .dock.wide{display:none}
+.dock .btn{flex:1;min-width:0;padding:0 12px;white-space:nowrap}
+
+/* footer */
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.55;color:var(--text-3)}
+footer a{color:var(--text-2)}
+
+/* account sheet */
+dialog.sheet{border:0;padding:0;width:100%;max-width:480px;max-height:92dvh;margin:auto auto 0;border-radius:22px 22px 0 0;background:var(--bench);color:var(--text);overflow:auto;overscroll-behavior:contain}
+dialog.sheet:focus{outline:none}
+dialog.sheet::backdrop{background:rgba(8,7,5,.66)}
+dialog.sheet[open]{animation:rise .24s cubic-bezier(.2,.8,.2,1)}
+@keyframes rise{from{transform:translateY(28px);opacity:0}}
+@media (min-width:620px){dialog.sheet{margin:auto;border-radius:20px}}
+.sheet-in{padding:20px 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:16px}
+.sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.sheet-head h2{font-weight:800;font-stretch:112%;font-size:24px;line-height:1.12;letter-spacing:-.015em;text-wrap:balance}
+.x{appearance:none;flex:none;width:38px;height:38px;margin:-6px -8px 0 0;border-radius:50%;border:0;background:var(--bench-2);cursor:pointer;display:grid;place-items:center}
+.x:hover{background:#322d22}
+.msg{padding:12px 14px;border-radius:10px;background:var(--bench-2);font-size:14.5px;line-height:1.45}
+.msg.err{color:#f6c2b3;box-shadow:inset 3px 0 0 var(--bad)}
+.sheet form{display:flex;flex-direction:column;gap:14px}
+.seg{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:var(--floor)}
+.seg button{appearance:none;min-height:42px;border:0;border-radius:9px;background:transparent;color:var(--text-2);font-size:15px;font-weight:600;cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--bench-2);color:var(--text);box-shadow:0 0 0 1px var(--rule-2)}
+.passwrap{position:relative}
+.passwrap input{padding-right:70px}
+.passwrap button{position:absolute;right:6px;top:50%;transform:translateY(-50%);appearance:none;border:0;background:none;padding:8px 10px;font-size:14px;font-weight:600;color:var(--text-2);cursor:pointer}
+.bal{display:flex;align-items:center;gap:16px;padding:16px;border-radius:14px;background:var(--floor)}
+.bal .big{font-weight:900;font-stretch:125%;font-size:56px;line-height:.9;letter-spacing:-.02em}
+.bal .of{display:flex;flex-direction:column;gap:2px;font-size:16px;font-weight:650;line-height:1.3}
+.bal .of span:last-child{font-size:14px;font-weight:400;color:var(--text-2)}
+.packs{display:flex;flex-direction:column;gap:8px}
+.pack{appearance:none;display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px;padding:14px 16px;border-radius:12px;border:1px solid var(--rule-2);background:transparent;text-align:left;cursor:pointer}
+.pack:hover{border-color:var(--paper);background:rgba(236,229,214,.04)}
+.pack .n{font-size:17px;font-weight:700;line-height:1.25}
+.pack .tag{margin-left:8px;padding:2px 8px;border-radius:999px;background:var(--lamp);color:var(--lamp-ink);font-size:12px;font-weight:700;vertical-align:1px;white-space:nowrap}
+.pack .p{grid-row:1/3;grid-column:2;font-size:18px;font-weight:750}
+.pack .each{font-size:14px;color:var(--text-2)}
+.pack:disabled{opacity:.45;cursor:wait}
+.sheet h3{font-weight:700;font-size:16px;line-height:1.3}
+.who{font-size:14.5px;color:var(--text-2);overflow-wrap:anywhere}
+
+/* sale notice: a cream strip across the top, the same paper as the show card, with a live countdown */
+.deal{background:var(--paper);color:var(--ink)}
+.deal-in{max-width:600px;margin:0 auto;padding:10px var(--gutter) 11px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 14px}
+.deal-tag{justify-self:start;padding:5px 8px 4px;border-radius:5px;background:var(--ink);color:var(--paper);font-weight:900;font-stretch:125%;font-size:10.5px;line-height:1;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.deal-left{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.deal p{font-size:15px;font-weight:600;line-height:1.3}
+.deal p b{font-weight:850}
+.deal-right{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.clock{display:flex;align-items:baseline;gap:5px;white-space:nowrap}
+.clock small{font-size:12.5px;font-weight:550;color:var(--ink-2);margin-right:2px}
+.clock span{font-weight:900;font-stretch:118%;font-size:17px;line-height:1;letter-spacing:-.01em}
+.clock i{font-style:normal;font-weight:600;font-size:12px;color:var(--ink-2);margin-left:1px}
+.deal .btn{white-space:nowrap;min-height:36px;padding:0 13px;border-radius:9px;font-size:14px;background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.deal .btn:hover{background:#2c271e;border-color:#2c271e}
+@media (max-width:420px){.deal-in{grid-template-columns:1fr}.deal-right{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 10px;width:100%}.clock span{font-size:16px}.clock{gap:4px}}
+@media (min-width:980px){.deal-in{max-width:1080px;padding-inline:32px;grid-template-columns:auto minmax(0,1fr) auto}.deal-left{flex-direction:row;align-items:center;gap:14px;grid-column:1/3}.deal-right{flex-direction:row;align-items:center;gap:18px}}
+
+/* mode tabs: Scan / Creative mode */
+.tabs{display:flex;gap:4px;margin:2px 0 6px;border-bottom:1px solid var(--rule)}
+.tabs button{appearance:none;position:relative;border:0;background:none;padding:12px 4px 13px;margin-right:18px;color:var(--text-2);font-weight:650;font-size:15.5px;cursor:pointer}
+.tabs button:hover{color:var(--text)}
+.tabs button[aria-current="page"]{color:var(--text)}
+.tabs button[aria-current="page"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--lamp)}
+
+/* creative mode: the AI build guide */
+.cm-entry{margin-top:30px;padding:18px;border-radius:16px;background:var(--bench);border:1px solid var(--rule);display:flex;flex-direction:column;gap:14px}
+.cm-entry h2{font-weight:800;font-stretch:112%;font-size:22px;line-height:1.15;letter-spacing:-.01em;margin-top:8px}
+.cm-entry .note{margin-top:6px}
+.cm-tag{display:inline-block;padding:5px 8px 4px;border-radius:5px;background:var(--paper);color:var(--ink);font-weight:900;font-stretch:125%;font-size:10.5px;line-height:1;letter-spacing:.03em;text-transform:uppercase}
+.cm-entry .btn{align-self:flex-start}
+#build{padding-top:6px}
+.bhead{display:flex;flex-direction:column;gap:8px;padding:10px 0 4px}
+.bhead h1{font-weight:900;font-stretch:125%;font-size:clamp(28px,8vw,40px);line-height:.98;letter-spacing:-.015em;text-transform:uppercase}
+.bform{margin-top:18px;display:flex;flex-direction:column;gap:16px}
+.bform .fields{gap:12px}
+.req{color:var(--lamp);font-weight:700}
+.saved{margin-top:34px;display:flex;flex-direction:column;gap:10px}
+.saved h2{font-weight:750;font-stretch:108%;font-size:18px}
+.saved-list{display:flex;flex-direction:column;gap:8px}
+.saved-list button{appearance:none;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:1px solid var(--rule);background:var(--bench);text-align:left;cursor:pointer}
+.saved-list button:hover{border-color:var(--rule-2)}
+.saved-list b{font-weight:700;font-size:16px}
+.saved-list span{font-size:13.5px;color:var(--text-3);white-space:nowrap}
+.bnav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px}
+.bcar{margin-top:10px}
+.bcar .plate{gap:10px;padding:14px 16px}
+.bcar .plate h2{font-size:clamp(22px,6.4vw,30px)}
+.bcar .match{padding-top:10px}
+.chat{display:flex;flex-direction:column;gap:22px;margin-top:22px}
+.bubble{align-self:flex-end;max-width:86%;padding:11px 14px;border-radius:16px 16px 4px 16px;background:var(--bench-2);border:1px solid var(--rule);font-size:16px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai{display:flex;flex-direction:column;gap:12px}
+.ai-who{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-3)}
+.ai-who::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--lamp)}
+.say{display:flex;flex-direction:column;gap:9px;font-size:16px;line-height:1.55}
+.say ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.say b{font-weight:700}
+.ask{padding:14px 16px;border-radius:14px;border:1px solid var(--rule-2);background:var(--bench);display:flex;flex-direction:column;gap:14px}
+.ask-q{display:flex;flex-direction:column;gap:9px}
+.ask-q p{font-weight:650;font-size:15.5px;line-height:1.4}
+.ask .chips{gap:7px}
+.ask.answered{opacity:.6}
+.ai .group{margin-top:4px}
+.fit{font-size:14.5px;line-height:1.5;color:var(--text)}
+.fit b,.price b{font-weight:650}
+.price{font-size:14.5px;color:var(--text-2)}
+.steps{margin:0;padding:14px 16px 14px 34px;border-radius:12px;background:var(--bench);font-size:15px;line-height:1.5;display:flex;flex-direction:column;gap:5px}
+.steps-h,.warn-h{font-weight:750;font-size:15px}
+.warn{padding:12px 14px;border-radius:12px;background:var(--bench);box-shadow:inset 3px 0 0 var(--lamp);font-size:14.5px;line-height:1.5;color:var(--text-2);display:flex;flex-direction:column;gap:4px}
+.warn p{margin:0}
+.thinking{display:flex;align-items:center;gap:12px;font-size:15px;color:var(--text-2)}
+.chat-err{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--bench);box-shadow:inset 3px 0 0 var(--bad);font-size:15px;color:#f6c2b3}
+.starters{display:flex;flex-direction:column;gap:8px;margin-top:20px}
+.starters p{font-size:14px;font-weight:600;color:var(--text-2)}
+.composer{position:sticky;bottom:0;z-index:5;margin:22px calc(var(--gutter)*-1) 0;padding:12px var(--gutter) calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,rgba(20,18,16,0),var(--floor) 22%);display:flex;flex-direction:column;gap:6px}
+.composer-row{display:flex;gap:8px;align-items:flex-end}
+.composer textarea{min-height:52px;max-height:160px;resize:none;border-radius:14px;background:var(--bench);padding:14px}
+.composer .btn{flex:none;min-height:52px;padding:0 18px}
+.meter{font-size:13px;color:var(--text-3);padding-left:4px}
+.linkbtn{appearance:none;background:none;border:0;padding:0;cursor:pointer;font:inherit}
+@media (min-width:980px){#build{max-width:720px;margin:0 auto}}
+
+/* wide screens: photo stays put on the left while the parts list scrolls */
+@media (min-width:980px){
+  .page{max-width:1080px;padding-inline:32px}
+  .top{min-height:72px}
+  .brand{font-size:14px;padding:9px 13px 8px}
+  #home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:0 80px;align-items:start}
+  #home .hero{padding-top:64px;gap:18px}
+  #home .hero h1{font-size:60px}
+  #home .lede{font-size:19px}
+  #home .cta{max-width:340px}
+  #home .sec.example{margin-top:36px}
+  #scan{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:0 56px;align-items:start;padding-top:20px}
+  #scan .stage{position:sticky;top:24px}
+  #scan.done #dock{display:none}
+  #scan.done .dock.wide{display:flex;position:static;margin:14px 0 0;padding:0;background:none}
+  #scan.attached .photo{border-radius:16px}
+  #scan.attached .plate{border-radius:16px}
+}
+@media (prefers-reduced-motion:reduce){.scanline,.spin,dialog.sheet[open],.result.fresh .plate,.result.fresh > :not(.plate){animation:none}}
+</style>
+</head>
+<body>
+
+<aside class="deal" id="deal" aria-label="Black Friday deal" hidden>
+  <div class="deal-in">
+    <div class="deal-left">
+      <span class="deal-tag">Black Friday</span>
+      <p id="dealText"></p>
+    </div>
+    <div class="deal-right">
+      <div class="clock" id="clock" role="timer" aria-label="Time left"></div>
+      <button class="btn" type="button" id="dealBtn" hidden>Claim your scans</button>
+    </div>
+  </div>
+</aside>
+
+<div class="page">
+  <header class="top">
+    <button class="brand" id="brand" type="button" aria-label="Build Spotter home">Build Spotter</button>
+    <div class="top-right">
+      <button class="pill" id="creditPill" type="button" hidden><span id="pillText"></span></button>
+      <button class="btn small" id="acctBtn" type="button" hidden>Sign in</button>
+      <button class="btn small" id="settingsBtn" type="button" hidden>AI settings</button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mode">
+    <button type="button" id="tabScan" aria-current="page">Scan a car</button>
+    <button type="button" id="tabCreative">Creative mode</button>
+  </nav>
+
+  <input id="cam" type="file" accept="image/*" capture="environment" hidden>
+  <input id="pick" type="file" accept="image/*" hidden>
+
+  <!-- Home: one job, take a photo -->
+  <main id="home">
+    <div class="left">
+      <section class="hero droptarget">
+        <h1>Find out what&rsquo;s on any car.</h1>
+        <p class="lede">Take a photo of a car or a part. Build Spotter names the car, lists the parts it can see, and links you to where to buy them.</p>
+        <div class="cta">
+          <label class="btn primary big" for="cam" id="camLabel" tabindex="0">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5h3.6L8.5 5.5h7l1.9 3H21v10.5H3z"/><circle cx="12" cy="13.2" r="3.6"/></svg>
+            Take a photo
+          </label>
+          <label class="btn big" for="pick" id="pickLabel" tabindex="0">Choose a photo</label>
+        </div>
+        <p class="fine drop-hint">You can also drag a photo onto this page, or paste one.</p>
+        <p class="fine" id="freeLine" hidden></p>
+      </section>
+
+      <section class="cm-entry" aria-labelledby="cmTitle">
+        <div>
+          <span class="cm-tag">Creative mode</span>
+          <h2 id="cmTitle">Plan your own build</h2>
+          <p class="note">Tell the AI guide your car and what you want to do with it. It asks for anything it needs, then recommends parts that fit, with links to buy them.</p>
+        </div>
+        <button class="btn light" id="cmStart" type="button">Start planning</button>
+      </section>
+
+      <form class="panel" id="accessForm" hidden>
+        <h2>Enter your access code</h2>
+        <p class="note" id="accessMsg">This app needs an access code. You only enter it once on this device.</p>
+        <label class="f">Access code<input id="a-code" type="password" autocomplete="off" placeholder="Ask the app owner"></label>
+        <div class="row"><button class="btn light" type="submit">Save code</button></div>
+      </form>
+
+      <form class="panel" id="settings" hidden>
+        <h2>Connect an AI service</h2>
+        <p class="note">This copy of Build Spotter sends your photo to the AI service you pick, using your own API key. The key stays on this device.</p>
+        <div class="fields">
+          <label class="f">Service
+            <select id="s-provider">
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Google Gemini</option>
+            </select>
+          </label>
+          <label class="f">Model<input id="s-model" autocomplete="off" spellcheck="false"></label>
+          <label class="f full">API key<input id="s-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key"></label>
+        </div>
+        <div class="row">
+          <button class="btn light" type="submit">Save settings</button>
+          <a class="xl" id="keyLink" target="_blank" rel="noopener" href="#">Get a key</a>
+        </div>
+        <p class="note" id="settingsMsg" hidden></p>
+      </form>
+
+      <section class="sec" id="recentWrap" hidden>
+        <div class="sec-head"><h2>Your recent scans</h2></div>
+        <div class="recent" id="recent"></div>
+      </section>
+    </div>
+
+    <section class="sec example" aria-labelledby="exTitle">
+      <div class="sec-head">
+        <h2 id="exTitle">What you get back</h2>
+        <p class="note">An example scan: a photo taken at a local meet, and what Build Spotter made of it.</p>
+      </div>
+      <div id="exampleBox"></div>
+    </section>
+  </main>
+
+  <!-- Scan: the photo, then its show card and parts -->
+  <main id="scan" hidden>
+    <div class="stage">
+      <figure class="photo droptarget" id="shot">
+        <img id="preview" alt="Your photo">
+        <div class="scanline" id="scanline" hidden></div>
+      </figure>
+      <div class="dock wide">
+        <label class="btn" for="pick" tabindex="0">Scan another photo</label>
+      </div>
+    </div>
+    <div class="flow">
+      <div class="status" id="status" role="status" hidden></div>
+      <div id="results"></div>
+
+      <details class="more" id="refine" hidden>
+        <summary>Missed something? Tell us more</summary>
+        <form class="more-body" id="form">
+          <div class="fl">Look closer at
+            <div class="chips" id="chips"></div>
+          </div>
+          <label class="f">Anything you already know<textarea id="f-notes" placeholder="For example: the wheels look like TE37s, and it sits really low"></textarea></label>
+          <div class="row">
+            <button class="btn light" type="submit" id="refineBtn">Scan again</button>
+            <button class="textbtn" type="button" id="clearBtn">Clear</button>
+          </div>
+          <p class="note" id="refineCost" hidden>Scanning again uses 1 scan.</p>
+        </form>
+      </details>
+
+      <div class="dock" id="dock">
+        <label class="btn primary" for="cam" id="camAgain" tabindex="0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5h3.6L8.5 5.5h7l1.9 3H21v10.5H3z"/><circle cx="12" cy="13.2" r="3.6"/></svg>
+          Take photo
+        </label>
+        <label class="btn" for="pick" tabindex="0">Choose photo</label>
+      </div>
+    </div>
+  </main>
+
+
+  <!-- Creative mode: the AI build guide -->
+  <main id="build" hidden>
+    <div id="bSetup">
+      <div class="bhead">
+        <h1>Plan your build</h1>
+        <p class="lede">Tell the guide about your car. The more you fill in, the better the parts fit.</p>
+      </div>
+      <form class="bform" id="carForm" novalidate>
+        <div class="fields">
+          <label class="f">Year<input id="c-year" inputmode="numeric" autocomplete="off" placeholder="2017"></label>
+          <label class="f"><span>Make <span class="req" aria-hidden="true">*</span></span><input id="c-make" autocomplete="off" placeholder="Honda" required></label>
+          <label class="f"><span>Model <span class="req" aria-hidden="true">*</span></span><input id="c-model" autocomplete="off" placeholder="Civic Si" required></label>
+          <label class="f">Generation or chassis code<input id="c-generation" autocomplete="off" placeholder="10th gen (FC1)"></label>
+          <label class="f full">Trim or engine<input id="c-trim" autocomplete="off" placeholder="1.5L turbo, sedan"></label>
+          <label class="f">Transmission
+            <select id="c-transmission"><option value="">Not sure</option><option>Manual</option><option>Automatic</option><option>Dual-clutch</option><option>CVT</option></select>
+          </label>
+          <label class="f">Drivetrain
+            <select id="c-drivetrain"><option value="">Not sure</option><option>FWD</option><option>RWD</option><option>AWD</option><option>4WD</option></select>
+          </label>
+          <label class="f full">Already done to it<textarea id="c-mods" placeholder="For example: stock wheels, Eibach springs, intake"></textarea></label>
+          <label class="f full">Budget<input id="c-budget" autocomplete="off" placeholder="About $2,000"></label>
+        </div>
+        <div class="fl">What do you want to do?
+          <div class="chips" id="goalChips"></div>
+        </div>
+        <label class="f">Tell the guide in your own words<textarea id="c-first" placeholder="For example: I want it to sit lower and get wheels that fill the arches, without ruining the ride"></textarea></label>
+        <button class="btn primary big" type="submit" id="carGo">Start build session</button>
+        <p class="note" id="cmCost" hidden></p>
+      </form>
+      <section class="saved" id="savedWrap" hidden>
+        <h2>Your builds</h2>
+        <div class="saved-list" id="savedList"></div>
+      </section>
+    </div>
+
+    <div id="bChat" hidden>
+      <div class="bnav">
+        <button class="textbtn" type="button" id="bExit">&larr; Save and exit</button>
+        <button class="btn small" type="button" id="bNew">New build</button>
+      </div>
+      <div class="bcar" id="bCar"></div>
+      <div class="chat" id="chat"></div>
+      <div class="starters" id="starters" hidden></div>
+      <form class="composer" id="composer">
+        <div class="composer-row">
+          <textarea id="say" rows="1" placeholder="Ask the build guide" aria-label="Message the build guide"></textarea>
+          <button class="btn primary" type="submit" id="sayBtn">Send</button>
+        </div>
+        <span class="meter" id="meter" hidden></span>
+      </form>
+    </div>
+  </main>
+
+  <footer>
+    <p>Part IDs are visual best guesses. Check fitment (bolt pattern, offset, year range) before you buy.</p>
+    <p>Your photo, and in Creative mode what you type, is sent to an AI service. Recent scans and builds are saved on this device only.</p>
+    <p id="donateLine" hidden>Build Spotter is a small independent project. <a id="donateLink" href="#" target="_blank" rel="noopener">Chip in to keep it running</a>.</p>
+    <p>&copy; <span id="yr">2026</span> Build Spotter. <a href="privacy.html">Privacy</a></p>
+  </footer>
+</div>
+
+<!-- Account -->
+<dialog class="sheet" id="acctPanel" aria-labelledby="acctTitle" tabindex="-1">
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h2 id="acctTitle">Create your free account</h2>
+      <button class="x" id="acctClose" type="button" aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg>
+      </button>
+    </div>
+    <p class="msg" id="acctMsg" role="status" hidden></p>
+
+    <div id="vSignin" hidden>
+      <form id="signinForm" novalidate>
+        <div class="seg" role="tablist" aria-label="Account">
+          <button type="button" role="tab" id="tabSignup" aria-selected="true">Create account</button>
+          <button type="button" role="tab" id="tabSignin" aria-selected="false">Sign in</button>
+        </div>
+        <p class="note" id="freeNote">5 free scans every month. No card needed.</p>
+        <label class="f">Email<input id="inEmail" type="email" autocomplete="email" inputmode="email" required></label>
+        <label class="f">Password
+          <span class="passwrap"><input id="inPass" type="password" autocomplete="new-password" minlength="8" required><button type="button" id="passToggle" aria-pressed="false">Show</button></span>
+        </label>
+        <button class="btn primary" type="submit" id="authSubmit">Create free account</button>
+        <button class="textbtn" type="button" id="forgotBtn" hidden style="align-self:flex-start">Forgot your password?</button>
+      </form>
+    </div>
+
+    <div id="vReset" hidden>
+      <form id="resetForm">
+        <label class="f">New password<input id="newPass" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button class="btn primary" type="submit">Save new password</button>
+      </form>
+    </div>
+
+    <div id="vAccount" hidden style="display:flex;flex-direction:column;gap:16px">
+      <div class="bal"><span class="big" id="balBig">0</span><span class="of"><span id="balWord">scans left</span><span id="balSplit"></span></span></div>
+      <p class="note" id="balRefill"></p>
+      <div id="buyWrap" style="display:flex;flex-direction:column;gap:12px">
+        <h3>Get more scans</h3>
+        <div class="packs" id="packs"></div>
+        <p class="note">Secure checkout by Stripe. Bought scans never expire, and a scan that fails is refunded automatically.</p>
+      </div>
+      <div class="row" style="justify-content:space-between">
+        <span class="who" id="acctEmail"></span>
+        <button class="textbtn" type="button" id="signoutBtn">Sign out</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/* Donation link: set it here, or (on Netlify) with the DONATE_URL environment variable. */
+const DONATE_URL="";
+
+const CATS=["Wheels","Tires","Suspension","Brakes","Aero & Body","Lighting","Exhaust","Engine","Interior","Other"];
+const PROVIDERS={
+  anthropic:{model:"claude-sonnet-5-5",key:"https://console.anthropic.com/settings/keys"},
+  openai:{model:"gpt-5.5",key:"https://platform.openai.com/api-keys"},
+  gemini:{model:"gemini-3.6-flash",key:"https://aistudio.google.com/apikey"}
+};
+const $=id=>document.getElementById(id);
+const state={pending:new Map(),live:new Map(),liveText:new Map(),mode:"pending",sample:null,img:null,thumb:null,current:null,override:"",editing:false,ctl:null,focus:new Set(),authMode:"signup"};
+
+/* The example on the home page: a real photo (example.jpg) and the scan it produced. */
+const EXAMPLE={subject:"car",
+  vehicle:{year:"2013–2016",make:"Scion",model:"FR-S",trim:"First generation (ZN6)",color:"Red",confidence:"medium"},
+  summary:"Widebody street build sitting low on mesh wheels, with a carbon hood and a front splitter. The same body was sold as the Toyota 86 and Subaru BRZ.",
+  parts:[
+    {category:"Wheels",name:"Black mesh wheels with a polished lip",detail:"18x9.5 est. · 5x100 · stepped lip",confidence:"medium",evidence:"Fine mesh face with a bright stepped lip on both wheels.",query:"black mesh wheels polished lip 18x9.5 5x100",alternatives:["BBS RS","Work VS-XX","ESR SR01"]},
+    {category:"Suspension",name:"Coilovers, lowered about 2 in",detail:"Almost no fender gap, slight negative camber",confidence:"medium",evidence:"The front tire sits up inside the flare with the body level.",query:"Scion FR-S coilovers",alternatives:["BC Racing BR","KW V3"]},
+    {category:"Aero & Body",name:"Bolt-on widebody fender flares",detail:"Front and rear overfenders",confidence:"medium",evidence:"A visible seam where the wider arches meet the factory fenders.",query:"FR-S widebody fender flares",alternatives:["Rocket Bunny V1","Clinched flares"]},
+    {category:"Aero & Body",name:"Carbon fiber hood",detail:"Exposed weave, unpainted",confidence:"high",evidence:"The hood is a dark weave that doesn’t match the red paint.",query:"Scion FR-S carbon fiber hood",alternatives:["Seibon OEM-style"]},
+    {category:"Aero & Body",name:"Front splitter",detail:"Flat black, extends past the bumper",confidence:"low",evidence:"A thin dark edge under the front bumper.",query:"FR-S front splitter",alternatives:[]}
+  ],
+  photo_tips:"A rear three-quarter shot would show the wing and the exhaust."};
+
+/* ---------- storage (this device only) ---------- */
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}}};
+
+/* ---------- small things ---------- */
+function setDonate(url){
+  url=String(url||"").trim();
+  if(!/^https:\/\/[^\s"'<>]+$/i.test(url))return;
+  $("donateLink").href=url;$("donateLine").hidden=false;
+}
+setDonate(DONATE_URL);
+$("yr").textContent=new Date().getFullYear();
+if(matchMedia("(pointer:coarse)").matches)document.body.classList.add("touch");
+else $("pickLabel").textContent="Upload a photo",$("pickLabel").classList.add("primary");
+// labels act as buttons for the hidden file inputs; make them work from the keyboard too
+document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches?.("label[for][tabindex]")){e.preventDefault();e.target.click()}});
+
+/* ---------- views ---------- */
+function show(view){
+  $("home").hidden=view!=="home";$("scan").hidden=view!=="scan";$("build").hidden=view!=="build";
+  $("tabScan").toggleAttribute("aria-current",view!=="build");$("tabCreative").toggleAttribute("aria-current",view==="build");
+  if(view==="build")$("tabCreative").setAttribute("aria-current","page");else $("tabScan").setAttribute("aria-current","page");
+  const h=view==="build"?"#creative":"";if(location.hash!==h)history.replaceState(null,"",location.pathname+location.search+h);
+  window.scrollTo(0,0);
+}
+$("brand").onclick=()=>{state.ctl?.abort();show("home");drawRecent()};
+
+/* ---------- helpers ---------- */
+const enc=s=>encodeURIComponent(String(s).trim().replace(/\s+/g," "));
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const carName=v=>[v.year,v.make,v.model].filter(Boolean).join(" ").replace(/–/g,"-");
+const fullName=v=>[carName(v),v.trim].filter(Boolean).join(" ");
+const CONF={high:"Confident",medium:"Likely",low:"Best guess"};
+const confKey=c=>CONF[c]?c:"low";
+const plain=s=>String(s??"").replace(/\s*·\s*/g,", ");
+const dots=c=>`<span class="conf ${confKey(c)}" aria-hidden="true"><i></i><i></i><i></i></span>`;
+function blobToDataURL(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)})}
+function dataURLToBlob(u){const [h,d]=u.split(",");const bin=atob(d);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:(h.match(/:(.*?);/)||[])[1]||"image/jpeg"})}
+async function resize(blob,max,q){
+  try{const bmp=await createImageBitmap(blob,{imageOrientation:"from-image"});
+    const s=Math.min(1,max/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");
+    c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||blob),"image/jpeg",q));
+  }catch{return blob}
+}
+
+/* ---------- links ---------- */
+function partLinks(p,v){
+  const car=[v.make,v.model].filter(Boolean).join(" ");const q=p.query||p.name;
+  const more=[["eBay",`https://www.ebay.com/sch/i.html?_nkw=${enc(q)}`],
+    [car?"On this car":"Photos",`https://www.google.com/search?tbm=isch&q=${enc((q+" "+car).trim())}`]];
+  if(["Wheels","Tires","Suspension"].includes(p.category))
+    more.push(["Fitment",`https://www.google.com/search?q=${enc((car+" "+q).trim()+" site:fitmentindustries.com OR site:customwheeloffset.com")}`]);
+  else more.push([car?"Forums":"Reviews",`https://www.google.com/search?q=${enc((car+" "+q).trim()+" install review")}`]);
+  return `<a class="shop" href="https://www.google.com/search?tbm=shop&q=${enc(q)}" target="_blank" rel="noopener">Shop this part</a>`
+    +more.map(([t,h])=>`<a class="xl" href="${h}" target="_blank" rel="noopener">${t}</a>`).join("");
+}
+
+/* ---------- render ---------- */
+function subjectOf(r){return r.subject||(r.is_vehicle===false?"none":"car")}
+// Builds the show card and parts list. `live` adds the controls that only make sense on your own scan.
+function resultHTML(r,live){
+  const subj=subjectOf(r);
+  if(subj==="none")
+    return `<div class="plate"><div class="namewrap"><h2>No car or parts found</h2></div></div>
+      <p class="summary">${esc(r.summary||"")} Try a photo where the car or the part fills more of the frame.</p>`;
+  const v=r.vehicle||{}, hasCar=!!(v.make||v.model), parts=r.parts||[];
+  const groups=CATS.map(c=>[c,parts.filter(p=>(CATS.includes(p.category)?p.category:"Other")===c)]).filter(g=>g[1].length);
+  const title=hasCar?[v.make,v.model].filter(Boolean).join(" "):(subj==="parts"?"Loose parts":"Unknown car");
+  const matchText=state.override&&live?"Car name set by you"
+    :hasCar?`${dots(v.confidence)}${({high:"Confident match",medium:"Likely match",low:"Best guess"})[confKey(v.confidence)]}`
+    :subj==="parts"?"No car in this photo":"Couldn’t name this car";
+  const editLabel=hasCar?"Wrong car?":(subj==="parts"?"Add the car these fit":"Name this car");
+  return `<div class="plate">
+      <div class="namewrap"><div class="top-line"><span class="yr">${hasCar&&v.year?esc(v.year):(subj==="parts"?"Parts":"")}</span><span class="imprint">Build Spotter</span></div><h2>${esc(title)}</h2></div>
+      <dl class="facts">
+        ${hasCar&&v.trim?`<div class="wide"><dt>Trim</dt><dd>${esc(plain(v.trim))}</dd></div>`:""}
+        ${hasCar&&v.color?`<div><dt>Color</dt><dd>${esc(plain(v.color))}</dd></div>`:""}
+        <div><dt>Parts found</dt><dd>${parts.length}</dd></div>
+      </dl>
+    </div>
+    <div class="match"><span>${matchText}</span>${live&&!state.editing?`<button class="textbtn" id="nameEdit" type="button">${editLabel}</button>`:""}</div>
+    ${live&&state.editing?nameForm(hasCar?fullName(v):"",subj):""}
+    ${r.summary?`<p class="summary">${esc(r.summary)}</p>`:""}
+    ${hasCar?`<div class="carlinks">
+      <a class="xl" href="https://www.google.com/search?q=${enc(fullName(v)+" OEM parts")}" target="_blank" rel="noopener">Factory parts for this car</a>
+      <a class="xl" href="https://www.google.com/search?tbm=isch&q=${enc(fullName(v)+" modified")}" target="_blank" rel="noopener">Similar builds</a>
+      ${live?`<button class="xl linkbtn" type="button" id="planThis">Plan mods for this car</button>`:""}
+    </div>`:""}
+    ${groups.map(([c,ps])=>`<section class="group">
+      <div class="group-head"><h3>${esc(c)}</h3><span>${ps.length} ${ps.length===1?"part":"parts"}</span></div>
+      ${ps.map(p=>`<article class="part">
+        <h4>${esc(p.name)}</h4>
+        ${p.detail?`<p class="spec">${String(p.detail).split(/\s*·\s*/).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</p>`:""}
+        <p class="why">${dots(p.confidence)}<b>${CONF[confKey(p.confidence)]}.</b> ${esc(p.evidence||"")}</p>
+        ${p.alternatives&&p.alternatives.filter(Boolean).length?`<p class="alts">Could also be ${p.alternatives.filter(Boolean).map(a=>`<em>${esc(a)}</em>`).join(", ")}</p>`:""}
+        <div class="plinks">${partLinks(p,v)}</div></article>`).join("")}</section>`).join("")}
+    ${r.photo_tips?`<p class="tip"><b>For a better result:</b> ${esc(r.photo_tips)}</p>`:""}`;
+}
+function nameForm(name,subj){
+  const parts=subj==="parts";
+  return `<form class="nameedit" id="nameForm">
+      <label class="f" for="nameInput">${parts?"What car are these parts on, or for?":"What car is it?"}</label>
+      <input id="nameInput" value="${esc(state.override||name)}" placeholder="For example: 2019 Subaru WRX STI" autocomplete="off">
+      <div class="row"><button class="btn light" type="submit">Scan again as this car</button><button class="textbtn" type="button" id="nameCancel">Cancel</button></div>
+      <p class="note">The photo is checked again as this car, so factory parts, sizes and fitment match it.${state.accounts?" Uses 1 scan.":""}</p>
+    </form>`;
+}
+function render(){
+  const r=state.current, box=$("results");
+  box.className="result";
+  box.innerHTML=r?resultHTML(r,true):"";
+  const done=!!r;
+  $("refine").hidden=!done||subjectOf(r)==="none";
+  sync();
+  $("planThis")?.addEventListener("click",()=>{const v=state.current?.vehicle||{};
+    const yr=String(v.year||"").match(/\d{4}/g);
+    openBuild({year:yr?yr[yr.length-1]:"",make:v.make||"",model:v.model||"",trim:v.trim||"",
+      mods:(state.current.parts||[]).map(p=>p.name).filter(Boolean).slice(0,10).join(", ")})});
+  $("nameEdit")?.addEventListener("click",()=>{state.editing=true;render();const i=$("nameInput");i.focus();i.select()});
+  $("nameCancel")?.addEventListener("click",()=>{state.editing=false;render()});
+  $("nameForm")?.addEventListener("submit",e=>{e.preventDefault();
+    const n=$("nameInput").value.trim();if(!n){$("nameInput").focus();return}
+    if(!state.img){status("Add a photo first. The name is used together with the photo.",{err:true});return}
+    state.override=n;state.editing=false;render();analyze();
+  });
+}
+// keeps the photo and the show card joined, and shows the scan-again buttons once there is something to leave
+function sync(){
+  const busy=!$("scanline").hidden;
+  $("scan").classList.toggle("attached",!!state.current&&$("status").hidden);
+  $("scan").classList.toggle("done",!busy);
+}
+function renderExample(){
+  $("exampleBox").className="result attached";
+  $("exampleBox").innerHTML=`<figure class="photo"><img src="example.jpg" alt="A red widebody Scion FR-S at a car meet" width="960" height="711" loading="lazy"></figure>`+resultHTML(EXAMPLE,false);
+}
+
+/* ---------- chips ---------- */
+$("chips").innerHTML=CATS.filter(c=>c!=="Other").map(c=>`<button type="button" class="chip" aria-pressed="false" data-c="${c}">${c}</button>`).join("");
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
+  const on=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",on);on?state.focus.add(b.dataset.c):state.focus.delete(b.dataset.c)});
+
+/* ---------- photo ---------- */
+const needsScan=()=>!!state.img&&!state.current;
+async function setPhoto(file){
+  if(!file)return;
+  if(!file.type.startsWith("image/")){
+    if($("scan").hidden){show("scan");$("shot").hidden=true}
+    status("That file isn’t an image. Choose a JPG, PNG or HEIC photo.",{err:true});return}
+  state.img=await resize(file,1600,.88);state.thumb=await blobToDataURL(await resize(state.img,264,.72));
+  $("shot").hidden=false;$("preview").src=URL.createObjectURL(state.img);
+  state.current=null;state.override="";state.editing=false;state.recentIndex=null;
+  clearRefine();$("refine").open=false;
+  render();show("scan");analyze();
+}
+["cam","pick"].forEach(id=>$(id).addEventListener("change",e=>{setPhoto(e.target.files[0]);e.target.value=""}));
+let dragN=0;
+document.addEventListener("dragenter",e=>{if([...(e.dataTransfer?.types||[])].includes("Files")){dragN++;document.body.classList.add("drag")}});
+document.addEventListener("dragleave",()=>{if(--dragN<=0){dragN=0;document.body.classList.remove("drag")}});
+document.addEventListener("dragover",e=>{if([...(e.dataTransfer?.types||[])].includes("Files"))e.preventDefault()});
+document.addEventListener("drop",e=>{if(!e.dataTransfer?.files?.length)return;e.preventDefault();dragN=0;document.body.classList.remove("drag");setPhoto(e.dataTransfer.files[0])});
+document.addEventListener("paste",e=>{const f=[...(e.clipboardData?.files||[])][0];if(f)setPhoto(f)});
+
+/* ---------- status ---------- */
+// status(message, {err, busy, action:[label, fn]})
+function status(msg,o={}){
+  $("scanline").hidden=!o.busy;$("shot").classList.toggle("scanning",!!o.busy);$("results").classList.toggle("busy",!!o.busy);
+  const s=$("status");
+  if(!msg){s.hidden=true;sync();return}
+  s.hidden=false;s.className="status"+(o.err?" err":"");
+  s.innerHTML=(o.busy?'<span class="spin" aria-hidden="true"></span>':"")+`<span>${esc(msg)}</span>`
+    +(o.busy?'<button class="btn small" id="stop" type="button">Cancel</button>':"")
+    +(o.action?`<button class="btn small" id="statusAct" type="button">${esc(o.action[0])}</button>`:"");
+  if(o.busy)$("stop").onclick=()=>state.ctl?.abort();
+  if(o.action)$("statusAct").onclick=o.action[1];
+  sync();
+}
+
+/* ---------- prompt ---------- */
+/*PROMPT-START*/
+function makePrompt(o){
+  return `You are an expert at identifying cars and car parts from photos (wheels, tires, suspension, brakes, aero, lighting, exhaust, engine, interior).
+The attached image is a photo the user took. It is either:
+- a CAR (whole or partial): identify the vehicle from the photo alone, then every visible part an enthusiast might want to buy (aftermarket parts, and notable factory parts such as "Factory 18in STI BBS wheels" when that's what's fitted). Set "subject" to "car".
+- one or more PARTS on their own (a loose wheel, a coilover, an exhaust, a part on a shelf or in a box, or a close-up where the car itself can't be identified): identify each part. Set "subject" to "parts". If the photo shows what car the parts are on or for, fill "vehicle"; otherwise set "vehicle" to null.
+- neither: set "subject" to "none" and say what you see in "summary".
+${o.override?`
+IMPORTANT: The user says the car is: "${o.override}" (the car in the photo, or the car these parts are on). Treat this as correct even if the photo made you think otherwise. Fill the vehicle fields to match it (split into year, make, model, trim). Re-check every part against this exact car: decide factory vs aftermarket using this model's real factory equipment, use its correct bolt pattern, hub bore and factory wheel/tire sizes, and prefer parts made for this platform.
+`:""}
+Rules:
+- Only list parts you can actually see or that are strongly implied (ride height implies coilovers vs lowering springs). Never invent hidden parts.
+- Be specific: brand and model when the design or branding is recognizable. Read any visible text, stamps, stickers or sidewall markings.
+- Give the specifications in "detail", separated by " · ": for wheels diameter x width, offset, bolt pattern, finish, construction (forged/flow-formed/cast); for tires size, model, treadwear if readable; for suspension type and estimated drop; for brakes caliper brand and piston count; otherwise the size, material and finish. Say "est." for estimates.
+- If unsure of the brand, describe the style and give 1-3 likely candidates in "alternatives".
+- confidence is "high" (clear branding or unmistakable design), "medium" (strong visual match), or "low" (educated guess).
+- "query" is the best shopping search string for that exact part (brand model size finish), without the car name.
+- category must be one of: ${CATS.join(", ")}.
+${o.notes?`\nThe user adds: ${o.notes}\n`:""}${o.focus.length?`\nThe user mainly wants: ${o.focus.join(", ")}. Cover those in the most depth, but still list other visible parts.\n`:""}
+Reply with only JSON in this shape:
+{"subject":"car|parts|none","vehicle":{"year":"2018-2021","make":"","model":"","trim":"","color":"","confidence":"high|medium|low"},"summary":"one sentence describing the build, or what the parts are","parts":[{"category":"Wheels","name":"","detail":"18x9.5 · +38 est. · 5x114.3 · bronze · forged","confidence":"medium","evidence":"what in the photo shows this","query":"","alternatives":[""]}],"photo_tips":"one sentence on what extra angle would improve identification, or empty"}`;
+}
+/*PROMPT-END*/
+function promptInput(){return {override:state.override,notes:$("f-notes").value.trim(),focus:[...state.focus]}}
+function buildPrompt(){return makePrompt(promptInput())}
+
+/* ---------- AI backends ---------- */
+function parseJSON(t){
+  t=String(t||"").trim();
+  try{return JSON.parse(t)}catch{}
+  const f=t.match(/```(?:json)?\s*([\s\S]*?)```/);if(f){try{return JSON.parse(f[1])}catch{}}
+  const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1))}catch{}}
+  throw {code:"invalid_json"};
+}
+const ERR={not_granted:"Claude access wasn’t allowed for this page, so it can’t read photos.",sampling_disabled:"Claude isn’t available on this account.",
+  cut:"The connection dropped before the guide finished. Try again.",
+  rate_limited:"Too many requests right now. Wait a minute and try again.",image_rejected:"That photo couldn’t be read. Try a JPG or PNG under 20 MB.",
+  images_unavailable:"This view can’t send photos to Claude.",refused:"This photo couldn’t be scanned. Try a different one.",
+  invalid_json:"The answer came back garbled. Try again.",session_expired:"Sign in to Claude again, then retry.",
+  no_key:"Add an API key to scan photos.",need_code:"Enter the access code to scan photos.",
+  bad_code:"That access code didn’t work. Check it and try again.",server_key:"The app’s server isn’t set up yet: its API key is missing or invalid.",
+  too_large:"That photo is too large to send. Try a different one.",bad_key:"That API key was rejected. Check it in AI settings.",
+  network:"Couldn’t reach the AI service. Check your connection and try again.",
+  signin:"Sign in to scan this photo. A free account gets free scans every month.",no_credits:"You’re out of scans. Get more to keep going, or wait for next month’s free ones.",
+  accounts_down:"Accounts are having a problem right now. Try again in a minute.",payments_down:"Checkout couldn’t start. Try again in a minute."};
+
+async function askClaude(prompt,signal,onText){
+  return await state.sample.json(prompt,{images:state.img,signal,onText});
+}
+const API_PATH="/api/analyze";
+async function askServer(signal){
+  const image=(await blobToDataURL(await resize(state.img,1280,.85))).split(",")[1];
+  let res;
+  try{res=await fetch(API_PATH,{method:"POST",signal,headers:{"content-type":"application/json","x-access-code":store.get("spotter-code",""),...authHeader()},
+    body:JSON.stringify({image,...promptInput()})})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  let j={};try{j=await res.json()}catch{}
+  if(j.credits)setCredits(j.credits);
+  if(!res.ok||j.error){
+    if(j.code==="signin")openAcct("signin",ERR.signin);
+    if(j.code==="no_credits")openAcct("account",ERR.no_credits,true);
+    if(j.code==="bad_code"){state.needsCode=true;$("accessForm").hidden=false;try{localStorage.removeItem("spotter-code")}catch{}}
+    throw{code:j.code||"api",message:j.message||"The scan didn’t go through. Try again in a moment."};
+  }
+  return j.result;
+}
+async function askAPI(prompt,signal){
+  const s=getSettings();if(!s.key)throw{code:"no_key"};
+  const data=(await blobToDataURL(state.img)).split(",")[1];
+  let url,headers={"content-type":"application/json"},body,pick;
+  if(s.provider==="anthropic"){
+    url="https://api.anthropic.com/v1/messages";
+    Object.assign(headers,{"x-api-key":s.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"});
+    body={model:s.model,max_tokens:4096,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data}},{type:"text",text:prompt}]}]};
+    pick=j=>(j.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
+  }else if(s.provider==="openai"){
+    url="https://api.openai.com/v1/chat/completions";headers.authorization="Bearer "+s.key;
+    body={model:s.model,response_format:{type:"json_object"},messages:[{role:"user",content:[{type:"text",text:prompt},{type:"image_url",image_url:{url:"data:image/jpeg;base64,"+data}}]}]};
+    pick=j=>j.choices?.[0]?.message?.content;
+  }else{
+    url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model)}:generateContent`;headers["x-goog-api-key"]=s.key;
+    body={contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}};
+    pick=j=>(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("");
+  }
+  let res;
+  try{res=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  let j={};try{j=await res.json()}catch{}
+  if(!res.ok){
+    if(res.status===401||res.status===403)throw{code:"bad_key"};
+    if(res.status===429)throw{code:"rate_limited"};
+    const m=j.error?.message||j.error?.type||`HTTP ${res.status}`;
+    throw{code:"api",message:`The AI service said: ${m}`};
+  }
+  return parseJSON(pick(j));
+}
+
+/* ---------- analyze ---------- */
+async function analyze(){
+  if(!state.img)return;
+  if(state.mode==="pending"){status("Getting ready…",{busy:true});return}        // boot() scans as soon as it knows how
+  if(state.mode==="none"){status("Photo scanning isn’t available in this view. Open the page in the Claude app or on claude.ai.",{err:true});return}
+  if(state.mode==="api"&&!getSettings().key){show("home");$("settings").hidden=false;$("s-key").focus();setMsg("Add an API key to start. You only do this once.");return}
+  if(state.mode==="server"&&state.accounts){
+    if(!state.session){const m=state.authMode==="signup"?"Your photo is ready. Create a free account to scan it.":"Your photo is ready. Sign in to scan it.";status(m,{action:[state.authMode==="signup"?"Create account":"Sign in",()=>openAcct()]});openAcct("signin",m);return}
+    if(state.credits&&state.credits.total<=0){status(ERR.no_credits,{err:true,action:["Get scans",()=>openAcct()]});openAcct("account",ERR.no_credits,true);return}
+  }
+  if(state.mode==="server"&&state.needsCode&&!store.get("spotter-code","")){show("home");$("accessForm").hidden=false;$("a-code").focus();return}
+  state.ctl?.abort();const ctl=state.ctl=new AbortController();
+  $("refineBtn").disabled=true;
+  status(state.override?`Checking the parts again as a ${state.override}…`:"Identifying the car and its parts…",{busy:true});
+  try{
+    const r=state.mode==="claude"
+      ?await askClaude(buildPrompt(),ctl.signal,()=>status("Writing up the parts list…",{busy:true}))
+      :state.mode==="server"?await askServer(ctl.signal)
+      :await askAPI(buildPrompt(),ctl.signal);
+    if(!r||typeof r!=="object")throw{code:"invalid_json"};
+    if(ctl!==state.ctl)return;
+    state.current=r;state.editing=false;status("");render();$("results").classList.add("fresh");saveRecent();
+    window.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"});
+  }catch(e){
+    if(ctl!==state.ctl)return;
+    const again=["Try again",analyze];
+    if(e?.code==="cancelled")status("Scan cancelled.",{action:again});
+    else if(e?.code==="signin")status(ERR.signin,{action:["Sign in",()=>openAcct()]});
+    else if(e?.code==="no_credits")status(ERR.no_credits,{err:true,action:["Get scans",()=>openAcct()]});
+    else if(e?.code==="bad_code"||e?.code==="need_code"){show("home");$("accessMsg").textContent=ERR[e.code]}
+    else status(e?.message&&e.code==="api"?e.message:(ERR[e?.code]||"Something went wrong. Try again."),{err:true,action:again});
+  }finally{if(ctl===state.ctl)$("refineBtn").disabled=false}
+}
+$("form").addEventListener("submit",e=>{e.preventDefault();if(state.img)analyze()});
+function clearRefine(){$("f-notes").value="";state.focus.clear();document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"))}
+$("clearBtn").onclick=clearRefine;
+
+/* ---------- recent (this device only) ---------- */
+async function saveRecent(){
+  const r=state.current;if(!r||subjectOf(r)==="none"||!state.img)return;
+  const img=await blobToDataURL(await resize(state.img,1024,.78));
+  let list=store.get("spotter-recent2",[]);
+  if(state.recentIndex!=null&&list[state.recentIndex]?.img===state.recentImg)list.splice(state.recentIndex,1);
+  list=[{t:state.thumb,img,r,o:state.override,at:Date.now()},...list].slice(0,6);
+  while(list.length&&!store.set("spotter-recent2",list))list.pop();
+  state.recentIndex=0;state.recentImg=img;drawRecent();
+}
+const recentName=x=>{const v=x.r.vehicle||{};return [v.make,v.model].filter(Boolean).join(" ")||(x.r.parts||[])[0]?.name||"Scan"};
+function drawRecent(){const list=store.get("spotter-recent2",[]);$("recentWrap").hidden=!list.length;
+  $("recent").innerHTML=list.map((x,i)=>`<button type="button" data-i="${i}" aria-label="Open ${esc(recentName(x))}">${x.t?`<img src="${x.t}" alt="">`:""}<span>${esc(recentName(x))}</span></button>`).join("")}
+$("recent").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const i=+b.dataset.i;const x=store.get("spotter-recent2",[])[i];if(!x)return;
+  state.ctl?.abort();
+  state.current=x.r;state.override=x.o||"";state.editing=false;state.thumb=x.t;
+  state.img=x.img?dataURLToBlob(x.img):null;state.recentIndex=i;state.recentImg=x.img;
+  $("shot").hidden=!x.img;if(x.img)$("preview").src=x.img;
+  clearRefine();$("refine").open=false;status("");render();show("scan")});
+
+/* ---------- settings (when you run your own copy without the server) ---------- */
+function setMsg(t,ok){const m=$("settingsMsg");m.hidden=!t;m.textContent=t||"";m.style.color=ok?"var(--text)":""}
+function getSettings(){const s=store.get("spotter-ai",{});const p=PROVIDERS[s.provider]?s.provider:"anthropic";return{provider:p,model:s.model||PROVIDERS[p].model,key:s.key||""}}
+function fillSettings(){const s=getSettings();$("s-provider").value=s.provider;$("s-model").value=s.model;$("s-key").value=s.key;$("keyLink").href=PROVIDERS[s.provider].key}
+$("s-provider").addEventListener("change",e=>{const p=e.target.value;$("s-model").value=PROVIDERS[p].model;$("keyLink").href=PROVIDERS[p].key;
+  const saved=store.get("spotter-ai",{});$("s-key").value=saved.provider===p?saved.key||"":""});
+$("settings").addEventListener("submit",e=>{e.preventDefault();
+  const p=$("s-provider").value;const ok=store.set("spotter-ai",{provider:p,model:$("s-model").value.trim()||PROVIDERS[p].model,key:$("s-key").value.trim()});
+  setMsg(ok?"Saved on this device.":"Couldn’t save. Your browser may be blocking storage.",ok);
+  if(ok&&getSettings().key){setTimeout(()=>{$("settings").hidden=true},700);if(needsScan()){show("scan");analyze()}}});
+$("accessForm").addEventListener("submit",e=>{e.preventDefault();const c=$("a-code").value.trim();if(!c){$("a-code").focus();return}
+  if(store.set("spotter-code",c)){$("accessForm").hidden=true;if(needsScan()){show("scan");analyze()}}
+  else $("accessMsg").textContent="Couldn’t save. Your browser may be blocking storage."});
+$("settingsBtn").onclick=()=>{show("home");$("settings").hidden=!$("settings").hidden;if(!$("settings").hidden)$("s-key").focus()};
+
+/* ---------- accounts + credits (Supabase sign-in, Stripe checkout) ---------- */
+const SUPABASE_JS="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+const authHeader=()=>state.session?{authorization:"Bearer "+state.session.access_token}:{};
+const money=c=>{try{return new Intl.NumberFormat(undefined,{style:"currency",currency:(state.payments?.currency||"usd").toUpperCase()}).format(c/100)}catch{return "$"+(c/100).toFixed(2)}};
+const plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
+function acctMsg(msg,err){const m=$("acctMsg");if(!msg){m.hidden=true;return}m.hidden=false;m.className="msg"+(err?" err":"");m.textContent=msg}
+async function startAccounts(cfg){
+  state.accounts=cfg;
+  $("freeNote").textContent=dealOn()?`${state.promo.credits} free scans when you sign up, plus ${cfg.freePerMonth} free every month. No card needed.`:`${cfg.freePerMonth} free scans every month. No card needed.`;
+  $("refineCost").hidden=false;
+  if(store.get("spotter-known",false))state.authMode="signin";
+  drawAcct();
+  try{await loadScript(SUPABASE_JS)}catch{$("freeLine").hidden=false;$("freeLine").textContent="Couldn’t load sign-in. Check your connection and reload the page.";return}
+  state.sb=window.supabase.createClient(cfg.url,cfg.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  state.sb.auth.onAuthStateChange((ev,session)=>{
+    state.session=session;
+    if(ev==="PASSWORD_RECOVERY"){openAcct("reset");return}
+    if(ev==="SIGNED_OUT"){state.credits=null}
+    if(session)store.set("spotter-known",true);
+    drawAcct();
+    if(session&&(ev==="SIGNED_IN"||ev==="INITIAL_SESSION"||ev==="TOKEN_REFRESHED"))refreshCredits();
+  });
+  const {data}=await state.sb.auth.getSession();state.session=data.session;drawAcct();
+  await refreshCredits();
+  await handleReturn();
+}
+async function api(path,opt={}){
+  const res=await fetch(path,{...opt,headers:{"content-type":"application/json",...authHeader(),...(opt.headers||{})}});
+  let j={};try{j=await res.json()}catch{}
+  if(!res.ok)throw{code:j.code||"api",message:j.message,status:res.status};
+  return j;
+}
+async function refreshCredits(){
+  if(!state.session){state.credits=null;drawAcct();return}
+  try{const j=await api("/api/credits");setCredits(j.credits);
+    if(j.bonus>0){const m=`Welcome. ${j.bonus} Black Friday scans are in your balance.`;if($("acctPanel").open)acctMsg(m);else{$("freeLine").hidden=false;$("freeLine").textContent=m}}}catch{}
+}
+function setCredits(c){if(!c)return;state.credits=c;drawAcct()}
+function nextMonth(){const d=new Date();return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1)).toLocaleDateString(undefined,{month:"long",day:"numeric",timeZone:"UTC"})}
+function drawAcct(){
+  if(!state.accounts)return;
+  const s=state.session,c=state.credits,free=state.accounts.freePerMonth;
+  $("acctBtn").hidden=!!s;$("creditPill").hidden=!s;
+  const line=$("freeLine");line.hidden=false;
+  if(!s){line.innerHTML=(dealOn()?`Free to try: ${state.promo.credits} scans when you make a free account, then ${free} a month. No card needed.`:`Free to try: ${free} scans a month with a free account. No card needed.`)+` <button class="textbtn" type="button" data-acct>Sign in</button>`}
+  else if(c){
+    $("pillText").textContent=plural(c.total,"scan")+" left";$("creditPill").classList.toggle("out",c.total<=0);
+    line.innerHTML=c.total>0?`You have ${plural(c.total,"scan")} left.`:`You’re out of scans. <button class="textbtn" type="button" data-acct>Get more</button>`;
+  }else{$("pillText").textContent="Account";line.hidden=true}
+  if(s){
+    $("acctEmail").textContent=s.user?.email||"Signed in";
+    $("balBig").textContent=c?c.total:"–";
+    $("balWord").textContent=c&&c.total===1?"scan left":"scans left";
+    $("balSplit").textContent=c?`${c.free} free this month, ${c.paid} that never expire`:"";
+    $("balRefill").textContent=`Your free scans go back up to ${free} on ${nextMonth()}.`;
+  }
+  $("buyWrap").hidden=!state.payments;
+  if(!dealOn()&&state.accounts)$("freeNote").textContent=`${free} free scans every month. No card needed.`;
+  drawDeal();
+  if(state.payments&&!$("packs").childElementCount){
+    $("packs").innerHTML=state.payments.packs.map(p=>`<button class="pack" type="button" data-pack="${esc(p.id)}"><span class="n">${p.credits} scans${p.tag?`<span class="tag">${esc(p.tag)}</span>`:""}</span><span class="p">${money(p.cents)}</span><span class="each">${money(Math.round(p.cents/p.credits*10)/10)} a scan</span></button>`).join("");
+  }
+  if($("acctPanel").open&&state.view!=="reset")showView(s?"account":"signin");
+}
+$("freeLine").addEventListener("click",e=>{if(e.target.closest("[data-acct]")){if(!state.session)setAuthMode("signin");openAcct()}});
+function setAuthMode(m){
+  state.authMode=m;const up=m==="signup";
+  $("tabSignup").setAttribute("aria-selected",up);$("tabSignin").setAttribute("aria-selected",!up);
+  $("authSubmit").textContent=up?"Create free account":"Sign in";
+  $("inPass").autocomplete=up?"new-password":"current-password";
+  $("freeNote").hidden=!up;$("forgotBtn").hidden=up;
+  if(state.view==="signin")$("acctTitle").textContent=up?"Create your free account":"Sign in";
+}
+$("tabSignup").onclick=()=>{setAuthMode("signup");acctMsg("")};
+$("tabSignin").onclick=()=>{setAuthMode("signin");acctMsg("")};
+$("passToggle").onclick=()=>{const on=$("inPass").type==="password";$("inPass").type=on?"text":"password";$("passToggle").textContent=on?"Hide":"Show";$("passToggle").setAttribute("aria-pressed",on)};
+function showView(v){state.view=v;
+  $("vSignin").hidden=v!=="signin";$("vReset").hidden=v!=="reset";$("vAccount").hidden=v!=="account";
+  $("acctTitle").textContent=v==="reset"?"Choose a new password":v==="account"?"Your scans":"";
+  if(v==="signin")setAuthMode(state.authMode);
+}
+function openAcct(v,msg,err){
+  if(!state.accounts)return;
+  if(v!=="reset")v=state.session?"account":"signin";
+  showView(v);acctMsg(msg||"",!!err);
+  const d=$("acctPanel");if(!d.open)d.showModal();
+  d.scrollTop=0;
+  if(v==="signin"&&!matchMedia("(pointer:coarse)").matches)$("inEmail").focus();else d.focus();
+}
+function closeAcct(){if($("acctPanel").open)$("acctPanel").close();state.view=null}
+$("acctBtn").onclick=()=>openAcct();
+$("creditPill").onclick=()=>openAcct();
+$("acctClose").onclick=closeAcct;
+$("acctPanel").addEventListener("click",e=>{if(e.target===$("acctPanel"))closeAcct()});       // tap outside the sheet
+$("acctPanel").addEventListener("close",()=>{state.view=null});
+function creds(){const email=$("inEmail").value.trim(),pass=$("inPass").value;
+  if(!/^\S+@\S+\.\S+$/.test(email)){acctMsg("Enter your email address.",true);$("inEmail").focus();return null}
+  if(pass.length<8){acctMsg("Use a password with at least 8 characters.",true);$("inPass").focus();return null}
+  return{email,password:pass}}
+async function busyBtn(btn,fn){btn.disabled=true;try{await fn()}finally{btn.disabled=false}}
+function signedIn(){acctMsg("");if(needsScan()){closeAcct();analyze()}
+  else if(!$("build").hidden&&state.build&&$("say").value.trim()){closeAcct();const t=$("say").value.trim();$("say").value="";sendGuide(t)}
+  else showView("account")}
+$("signinForm").addEventListener("submit",e=>{e.preventDefault();const c=creds();if(!c||!state.sb)return;
+  busyBtn($("authSubmit"),async()=>{
+    if(state.authMode==="signup"){
+      acctMsg("Creating your account…");
+      const {data,error}=await state.sb.auth.signUp({...c,options:{emailRedirectTo:location.origin+location.pathname}});
+      if(error){acctMsg(/already/i.test(error.message)?"That email already has an account. Choose Sign in instead.":error.message,true);return}
+      if(!data.session){acctMsg(`Almost done. We sent a link to ${c.email}. Open it to confirm your email, then come back and sign in.`);setAuthMode("signin");return}
+      signedIn();
+    }else{
+      acctMsg("Signing in…");
+      const {error}=await state.sb.auth.signInWithPassword(c);
+      if(error){acctMsg(/confirm/i.test(error.message)?"Confirm your email first: open the link we sent you, then sign in.":error.message.replace(/^Invalid login credentials$/,"That email and password don’t match. Check them, or create an account."),true);return}
+      signedIn();
+    }})});
+$("forgotBtn").onclick=async()=>{const email=$("inEmail").value.trim();
+  if(!/^\S+@\S+\.\S+$/.test(email)){acctMsg("Type your email above first, then choose Forgot your password.",true);$("inEmail").focus();return}
+  const {error}=await state.sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  acctMsg(error?error.message:`If ${email} has an account, a reset link is on its way.`,!!error)};
+$("resetForm").addEventListener("submit",async e=>{e.preventDefault();const p=$("newPass").value;
+  if(p.length<8){acctMsg("Use at least 8 characters.",true);return}
+  const {error}=await state.sb.auth.updateUser({password:p});
+  if(error){acctMsg(error.message,true);return}
+  state.view=null;showView("account");acctMsg("Password saved. You’re signed in.")});
+$("signoutBtn").onclick=async()=>{await state.sb.auth.signOut();state.session=null;state.credits=null;acctMsg("");state.authMode="signin";showView("signin");drawAcct()};
+$("packs").addEventListener("click",async e=>{const b=e.target.closest(".pack");if(!b)return;
+  if(!state.session){openAcct("signin","Sign in first, then choose a pack.");return}
+  document.querySelectorAll(".pack").forEach(x=>x.disabled=true);acctMsg("Opening secure checkout…");
+  try{const j=await api("/api/checkout",{method:"POST",body:JSON.stringify({pack:b.dataset.pack})});location.href=j.url}
+  catch(err){acctMsg(err.message||ERR[err.code]||ERR.payments_down,true);document.querySelectorAll(".pack").forEach(x=>x.disabled=false)}});
+// back from Stripe: add the credits straight away (the webhook also does it; it never counts twice)
+async function handleReturn(){
+  const q=new URLSearchParams(location.search);const paid=q.get("paid"),canceled=q.get("canceled");
+  if(!paid&&!canceled)return;
+  history.replaceState(null,"",location.pathname+location.hash);
+  if(canceled){openAcct("account","Checkout cancelled. You weren’t charged.");return}
+  if(!state.session){openAcct("signin","Payment received. Sign in to see your scans.");return}
+  openAcct("account","Payment received. Adding your scans…");
+  for(let i=0;i<5;i++){
+    try{const j=await api("/api/credits",{method:"POST",body:JSON.stringify({session_id:paid})});setCredits(j.credits);
+      acctMsg(j.added?`Payment received. ${j.added} scans added. Thanks for supporting Build Spotter.`:"Payment received. Your scans are in your balance.");return}catch{}
+    await new Promise(r=>setTimeout(r,1500));
+  }
+  acctMsg("Payment received. Your scans can take a minute to show up. Reload the page if they don’t.");
+}
+
+/* ---------- Black Friday sign-up deal (set on the server: SIGNUP_BONUS, SIGNUP_BONUS_ENDS) ---------- */
+let dealTimer=null;
+const dealOn=()=>!!state.promo&&Date.parse(state.promo.endsAt)>Date.now();
+function drawDeal(){
+  const on=dealOn()&&!!state.accounts;$("deal").hidden=!on;
+  if(!on){clearInterval(dealTimer);dealTimer=null;return}
+  const n=state.promo.credits,s=state.session;
+  $("dealText").innerHTML=s?`Tell a friend: new accounts get <b>${n} free scans</b> until the deal ends.`:`Make a free account and get <b>${n} free scans</b>.`;
+  $("dealBtn").hidden=!!s;$("dealBtn").textContent=`Claim ${n} scans`;
+  tickDeal();
+  if(!dealTimer)dealTimer=setInterval(tickDeal,1000);
+}
+function tickDeal(){
+  const left=Date.parse(state.promo.endsAt)-Date.now();
+  if(left<=0){state.promo=null;drawDeal();drawAcct();return}
+  const d=Math.floor(left/864e5),h=Math.floor(left/36e5)%24,m=Math.floor(left/6e4)%60,sec=Math.floor(left/1e3)%60,z=x=>String(x).padStart(2,"0");
+  $("clock").innerHTML=`<small>Ends in</small>${d?`<span>${d}</span><i>d</i>`:""}<span>${z(h)}</span><i>h</i><span>${z(m)}</span><i>m</i><span>${z(sec)}</span><i>s</i>`;
+  $("clock").setAttribute("aria-label",`Ends in ${d} days, ${h} hours, ${m} minutes`);
+}
+$("dealBtn").onclick=()=>{setAuthMode("signup");openAcct()};
+
+/* ---------- Creative mode: the AI build guide ---------- */
+/*GUIDE-PROMPT-START*/
+const GUIDE_CATS = ["Wheels","Tires","Suspension","Brakes","Aero & Body","Lighting","Exhaust","Engine","Interior","Other"];
+const LABELS = { year: "Year", make: "Make", model: "Model", generation: "Generation / chassis", trim: "Trim / engine",
+  transmission: "Transmission", drivetrain: "Drivetrain", mods: "Already done", goals: "Goals", budget: "Budget" };
+// The shape of every guide reply. Anthropic is made to fill it as a tool call, so the answer is always valid JSON
+// (a free-text answer breaks on things like 18" written inside a string). "reply" comes first so it can be shown as it streams.
+const S = { type: "string" }, LIST = { type: "array", items: S };
+const GUIDE_SCHEMA = { type: "object", required: ["reply"], properties: {
+  reply: S,
+  questions: { type: "array", items: { type: "object", required: ["q"], properties: { q: S, options: LIST } } },
+  parts: { type: "array", items: { type: "object", required: ["category", "name", "query"], properties: {
+    category: { type: "string", enum: GUIDE_CATS }, name: S, detail: S, fitment: S, why: S, price: S, query: S, alternatives: LIST } } },
+  steps: LIST, warnings: LIST,
+  car: { type: "object", properties: { year: S, make: S, model: S, generation: S, trim: S, transmission: S, drivetrain: S, mods: S, budget: S } },
+} };
+function carLines(car) {
+  return Object.keys(LABELS).filter(k => String(car?.[k] || "").trim()).map(k => `- ${LABELS[k]}: ${String(car[k]).trim()}`).join("\n") || "- (nothing yet)";
+}
+function guideSystem(car) {
+  return `You are Build Spotter's build guide: an expert car modifier and parts specialist. You help the user plan modifications for their own car and recommend specific parts that fit it.
+
+The user's car (as they entered it):
+${carLines(car)}
+
+How to work:
+- Talk like a knowledgeable friend at a parts counter: direct, specific, short. No filler, no hype.
+- Before recommending parts, make sure you know what matters for this request. If something that would change your answer is missing or unclear (exact generation, trim or engine, transmission, drivetrain, budget, how the car is used, current mods, the look or ride height they want, or their region for emissions and legality), ask in "questions": at most 3 at a time, each with 2 to 5 short tappable options when that makes sense. While you are waiting on answers that decide the parts, leave "parts" empty; say in "reply" what you need and why.
+- Recommend real parts that exist for this exact car: brand and model, plus the fitment that matters. Wheels: diameter x width, offset range, bolt pattern, center bore and hub rings, tire size, and whether fender rolling or camber is needed. Suspension: type, drop, and what else it needs (alignment, camber arms, end links). Engine and exhaust: whether a tune is needed and emissions legality. Brakes: minimum wheel size.
+- When fitment depends on something you can't confirm (a mid-year change, a sub-model), say what to check instead of guessing. Never invent part numbers.
+- Keep each reply focused: at most 6 parts, one or two sentences per field. If the plan needs more, cover the first stage and offer to do the rest next.
+- Give an estimated price range in US dollars when you can, for example "est. $1,100-1,400 set".
+- When the plan has more than one part, put the order to do things in "steps". Put real risks (warranty, legality, needs a tune, rubbing, ride quality) in "warnings".
+- "query" is the best shopping search for that exact part (brand model size), without the car name.
+- category must be one of: ${GUIDE_CATS.join(", ")}.
+- If the user tells you a fact about their car (for example that it's a 6-speed manual), put it in "car" using the keys year, make, model, generation, trim, transmission, drivetrain, mods, budget.
+- Stay on modifying, maintaining and fitting parts to cars. If asked about something else, steer back in one sentence.
+
+Reply with only JSON in this shape (leave out keys you don't need, or give them empty arrays):
+{"reply":"your message to the user in plain text: short paragraphs, or lines starting with '- '","questions":[{"q":"","options":[""]}],"parts":[{"category":"Wheels","name":"","detail":"18x9.5 · +38 · 5x114.3 · flow-formed","fitment":"what has to be true for this to fit this car","why":"why it suits what they asked for","price":"est. $","query":"","alternatives":[""]}],"steps":[""],"warnings":[""],"car":{}}`;
+}
+/*GUIDE-PROMPT-END*/
+const GOALS=["Look better","Sit lower","More power","Sharper handling","Track days","Better daily","Louder","Off-road"];
+const CAR_FIELDS=["year","make","model","generation","trim","transmission","drivetrain","mods","budget"];
+$("goalChips").innerHTML=GOALS.map(g=>`<button type="button" class="chip" aria-pressed="false" data-g="${esc(g)}">${esc(g)}</button>`).join("");
+$("goalChips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b)b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")});
+const builds=()=>store.get("spotter-builds",[]);
+function saveBuild(b=state.build){if(!b)return;b.at=Date.now();state.live.set(b.id,b);
+  let list=builds().filter(x=>x.id!==b.id);list=[b,...list].slice(0,8);
+  while(list.length&&!store.set("spotter-builds",list)){list.pop();if(list.length&&list[0].msgs.length>40)list[0].msgs=list[0].msgs.slice(-40)}}
+const carTitle=c=>[c.make,c.model].filter(Boolean).join(" ")||"Your car";
+function drawSaved(){const list=builds();$("savedWrap").hidden=!list.length;
+  $("savedList").innerHTML=list.map(b=>`<button type="button" data-id="${b.id}"><b>${esc([b.car.year,carTitle(b.car)].filter(Boolean).join(" "))}</b><span>${state.pending.has(b.id)?"Guide is replying…":`${b.msgs.filter(m=>m.r==="a").length} replies · ${new Date(b.at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}`}</span></button>`).join("")}
+$("savedList").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const x=state.live.get(+b.dataset.id)||builds().find(y=>String(y.id)===b.dataset.id);if(!x)return;
+  state.live.set(x.id,x);state.build=x;drawBuild();$("sayBtn").disabled=state.pending.has(x.id);$("bSetup").hidden=true;$("bChat").hidden=false;window.scrollTo(0,document.body.scrollHeight)});
+function openBuild(prefill){
+  state.build=null;show("build");$("bSetup").hidden=false;$("bChat").hidden=true;
+  $("carForm").dataset.edit="";$("carGo").textContent="Start build session";
+  for(const k of CAR_FIELDS)$("c-"+k).value=prefill?.[k]||"";
+  $("c-first").value="";document.querySelectorAll("#goalChips .chip").forEach(c=>c.setAttribute("aria-pressed","false"));
+  const n=state.guideReplies;$("cmCost").hidden=!(state.mode==="server"&&state.accounts&&n);
+  $("cmCost").textContent=n?`A build session uses 1 scan and includes ${n} replies from the guide.`:"";
+  drawSaved();
+  if(prefill?.make&&!matchMedia("(pointer:coarse)").matches)$("c-first").focus();
+}
+$("cmStart").onclick=()=>openBuild();
+// the Creative mode tab: back to the build you were on, or a new one
+$("tabCreative").onclick=()=>{if(!$("build").hidden)return;
+  if(state.build){show("build");$("bSetup").hidden=true;$("bChat").hidden=false;drawBuild()}else openBuild()};
+$("tabScan").onclick=()=>{if($("build").hidden&&!$("scan").hidden)return;show(state.current||state.img?"scan":"home")};
+if(location.hash==="#creative")openBuild();                         // a link straight into Creative mode
+$("carForm").addEventListener("submit",e=>{e.preventDefault();
+  const car={};for(const k of CAR_FIELDS){const v=$("c-"+k).value.trim();if(v)car[k]=v}
+  if(!car.make||!car.model){const el=$(!car.make?"c-make":"c-model");el.focus();el.setCustomValidity("Add this so the guide knows your car");el.reportValidity();setTimeout(()=>el.setCustomValidity(""),2000);return}
+  const goals=[...document.querySelectorAll("#goalChips .chip[aria-pressed=true]")].map(c=>c.dataset.g);
+  if(goals.length)car.goals=goals.join(", ");
+  if($("carForm").dataset.edit==="1"&&state.build){                  // editing the car keeps the conversation
+    if(!goals.length&&state.build.car.goals)car.goals=state.build.car.goals;
+    state.build.car=car;saveBuild();$("bSetup").hidden=true;$("bChat").hidden=false;drawBuild();
+    const t=$("c-first").value.trim();if(t)sendGuide(t);return}
+  state.build={id:Date.now(),car,msgs:[],chat:null,left:null,at:Date.now()};state.live.set(state.build.id,state.build);   // its own guide session: replies never carry over from another build
+  $("bSetup").hidden=true;$("bChat").hidden=false;window.scrollTo(0,0);
+  const first=$("c-first").value.trim()||(goals.length?`I want to: ${goals.join(", ").toLowerCase()}. Where should I start?`:"");
+  drawBuild();if(first)sendGuide(first);else $("say").focus();
+});
+// the car, as a small show card
+function carCard(c){
+  const facts=[["Generation",c.generation],["Trim / engine",c.trim],["Gearbox",c.transmission],["Drive",c.drivetrain],["Budget",c.budget]].filter(f=>f[1]);
+  return `<div class="plate"><div class="namewrap"><div class="top-line"><span class="yr">${esc(c.year||"Your build")}</span><span class="imprint">Build Spotter</span></div><h2>${esc(carTitle(c))}</h2></div>
+    ${facts.length?`<dl class="facts">${facts.map(([k,v])=>`<div${String(v).length>14?' class="wide"':""}><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`:""}</div>
+    <div class="match"><span>${c.mods?`Already done: ${esc(c.mods)}`:"Stock, as far as the guide knows"}</span><button class="textbtn" type="button" id="carEdit">Edit car</button></div>`;
+}
+// light formatting for the guide's text: paragraphs, "- " lists, **bold**
+function sayHTML(t){
+  const blocks=String(t||"").replace(/\r/g,"").split(/\n{2,}/);
+  return blocks.map(b=>{const lines=b.split("\n").filter(l=>l.trim());if(!lines.length)return"";
+    const fmt=x=>esc(x).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+    if(lines.every(l=>/^\s*[-•*]\s+/.test(l)))return`<ul>${lines.map(l=>`<li>${fmt(l.replace(/^\s*[-•*]\s+/,""))}</li>`).join("")}</ul>`;
+    return lines.map(l=>/^\s*[-•*]\s+/.test(l)?`<ul><li>${fmt(l.replace(/^\s*[-•*]\s+/,""))}</li></ul>`:`<p>${fmt(l)}</p>`).join("")}).join("");
+}
+function guidePartHTML(p,v){
+  return `<article class="part">
+    <h4>${esc(p.name)}</h4>
+    ${p.detail?`<p class="spec">${String(p.detail).split(/\s*·\s*/).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</p>`:""}
+    ${p.fitment?`<p class="fit"><b>Fitment:</b> ${esc(p.fitment)}</p>`:""}
+    ${p.why?`<p class="why">${esc(p.why)}</p>`:""}
+    ${p.price?`<p class="price"><b>Price:</b> ${esc(p.price)}</p>`:""}
+    ${p.alternatives&&p.alternatives.filter(Boolean).length?`<p class="alts">Also worth a look: ${p.alternatives.filter(Boolean).map(a=>`<em>${esc(a)}</em>`).join(", ")}</p>`:""}
+    <div class="plinks">${partLinks(p,v)}</div></article>`;
+}
+function aiHTML(d,i,last){
+  const v={make:state.build.car.make,model:state.build.car.model};
+  const parts=(Array.isArray(d.parts)?d.parts:[]).filter(p=>p&&p.name);
+  const groups=CATS.map(c=>[c,parts.filter(p=>(CATS.includes(p.category)?p.category:"Other")===c)]).filter(g=>g[1].length);
+  const qs=(Array.isArray(d.questions)?d.questions:[]).filter(q=>q&&q.q);
+  const steps=(Array.isArray(d.steps)?d.steps:[]).filter(Boolean), warns=(Array.isArray(d.warnings)?d.warnings:[]).filter(Boolean);
+  return `<div class="ai"><span class="ai-who">Build guide</span>
+    ${d.reply?`<div class="say">${sayHTML(d.reply)}</div>`:""}
+    ${qs.length?`<div class="ask${last?"":" answered"}" data-i="${i}">${qs.map((q,k)=>`<div class="ask-q"><p>${esc(q.q)}</p>
+      ${last&&Array.isArray(q.options)&&q.options.filter(Boolean).length?`<div class="chips">${q.options.filter(Boolean).slice(0,6).map(o=>`<button type="button" class="chip" data-q="${k}" data-a="${esc(o)}">${esc(o)}</button>`).join("")}</div>`:""}</div>`).join("")}
+      ${last?`<p class="note">${qs.length>1?"Tap an answer for each, or type everything below.":"Tap an answer, or type your own below."}</p>`:""}</div>`:""}
+    ${groups.map(([c,ps])=>`<section class="group"><div class="group-head"><h3>${esc(c)}</h3><span>${ps.length} ${ps.length===1?"part":"parts"}</span></div>${ps.map(p=>guidePartHTML(p,v)).join("")}</section>`).join("")}
+    ${steps.length?`<div><p class="steps-h">Do it in this order</p><ol class="steps">${steps.map(x=>`<li>${esc(x)}</li>`).join("")}</ol></div>`:""}
+    ${warns.length?`<div class="warn"><p class="warn-h">Before you buy</p>${warns.map(x=>`<p>${esc(x)}</p>`).join("")}</div>`:""}
+  </div>`;
+}
+const STARTERS=["Make it sit lower without ruining the ride","Best first mods on a budget","Wheels and tires that fit flush","Set it up for track days"];
+const thinkingHTML=b=>{const t=state.liveText.get(b.id);
+  return (t?`<div class="ai"><span class="ai-who">Build guide</span><div class="say" id="gLive">${sayHTML(t)}</div></div>`:"")
+    +`<div class="thinking" role="status"><span class="spin" aria-hidden="true"></span><span>${t?"Writing…":`Working out what fits your ${esc(carTitle(b.car))}…`}</span><button class="btn small" type="button" id="gStop">Stop</button></div>`};
+function drawBuild(extra){
+  const b=state.build;if(!b)return;
+  if(!extra&&state.pending.has(b.id))extra=thinkingHTML(b);
+  $("sayBtn").disabled=state.pending.has(b.id);
+  $("bCar").innerHTML=carCard(b.car);
+  const lastA=b.msgs.map(m=>m.r).lastIndexOf("a");
+  $("chat").innerHTML=b.msgs.map((m,i)=>m.r==="u"?`<div class="bubble">${esc(m.t)}</div>`:aiHTML(m.d||{},i,i===lastA&&i===b.msgs.length-1)).join("")+(extra||"");
+  $("starters").hidden=b.msgs.length>0||!!extra;
+  $("starters").innerHTML=`<p>Or start with one of these</p><div class="chips">${STARTERS.map(x=>`<button type="button" class="chip" data-s="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
+  const m=$("meter");m.hidden=!(b.left!=null&&state.mode==="server");
+  if(b.left!=null)m.textContent=b.left>0?`${b.left} ${b.left===1?"reply":"replies"} left in this session. The next session uses 1 scan.`:`This session is used up. Your next message starts a new one (1 scan).`;
+  if($("gStop"))$("gStop").onclick=()=>state.pending.get(b.id)?.abort();
+  $("carEdit").onclick=()=>{const keep=state.build;openBuild(keep.car);state.build=keep;
+    $("c-first").value="";$("carGo").textContent="Save and keep chatting";$("carForm").dataset.edit="1"};
+}
+$("starters").addEventListener("click",e=>{const c=e.target.closest(".chip");if(c)sendGuide(c.dataset.s)});
+// tapping answers: one question sends straight away; several collect until each has one
+$("chat").addEventListener("click",e=>{const c=e.target.closest(".ask .chip");if(!c)return;const box=c.closest(".ask");
+  box.querySelectorAll(`.chip[data-q="${c.dataset.q}"]`).forEach(x=>x.setAttribute("aria-pressed",x===c?"true":"false"));
+  const qs=[...box.querySelectorAll(".ask-q")];
+  const picked=qs.map((q,k)=>{const on=q.querySelector('.chip[aria-pressed="true"]');return on?[q.querySelector("p").textContent,on.dataset.a]:null});
+  const withOpts=qs.map(q=>!!q.querySelector(".chip"));
+  if(picked.every((p,k)=>p||!withOpts[k])){
+    const txt=picked.filter(Boolean).length===1?picked.find(Boolean)[1]:picked.filter(Boolean).map(([q,a])=>`${q} ${a}`).join("\n");
+    const typed=$("say").value.trim();$("say").value="";sendGuide(typed?txt+"\n"+typed:txt);
+  }});
+$("say").addEventListener("input",()=>{const t=$("say");t.style.height="auto";t.style.height=Math.min(160,t.scrollHeight)+"px"});
+$("say").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!matchMedia("(pointer:coarse)").matches){e.preventDefault();$("composer").requestSubmit()}});
+$("composer").addEventListener("submit",e=>{e.preventDefault();const t=$("say").value.trim();if(!t){$("say").focus();return}
+  $("say").value="";$("say").style.height="";sendGuide(t)});
+const wire=b=>{const out=b.msgs.slice(-24).map(m=>m.r==="u"?{role:"user",content:m.t}:{role:"assistant",content:JSON.stringify(m.d||{})});
+  while(out.length&&out[0].role!=="user")out.shift();return out};
+async function askGuideServer(b,signal,onP){
+  let res;
+  try{res=await fetch("/api/guide",{method:"POST",signal,headers:{"content-type":"application/json","x-access-code":store.get("spotter-code",""),...authHeader()},
+    body:JSON.stringify({car:b.car,messages:wire(b),chat:b.chat})})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  const fail=j=>{if(j.credits)setCredits(j.credits);
+    if(j.code==="signin")openAcct("signin","Sign in to use Creative mode. A free account comes with free scans every month.");
+    if(j.code==="no_credits")openAcct("account",ERR.no_credits,true);
+    return{code:j.code||"api",message:j.message}};
+  if(!res.ok){let j={};try{j=await res.json()}catch{}throw fail(j)}
+  // the reply streams in as lines of JSON: {p: text so far}..., then the finished answer
+  const rd=res.body.getReader(),dec=new TextDecoder();let buf="",fin=null;
+  const take=l=>{l=l.trim();if(!l)return;let o;try{o=JSON.parse(l)}catch{return}if(o.p!=null)onP?.(String(o.p));else fin=o};
+  try{for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let k;
+    while((k=buf.indexOf("\n"))>=0){take(buf.slice(0,k));buf=buf.slice(k+1)}}}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"cut"}}
+  take(buf);
+  if(!fin)throw{code:"cut"};
+  if(fin.error)throw fail(fin);
+  if(fin.credits)setCredits(fin.credits);
+  b.chat=fin.chat||null;b.left=fin.left;return fin.result;
+}
+async function askGuideAPI(b,signal){
+  const s=getSettings();if(!s.key)throw{code:"no_key"};
+  const sys=guideSystem(b.car),msgs=wire(b);
+  let url,headers={"content-type":"application/json"},body,pick;
+  if(s.provider==="anthropic"){url="https://api.anthropic.com/v1/messages";
+    Object.assign(headers,{"x-api-key":s.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"});
+    body={model:s.model,max_tokens:8192,system:sys,messages:msgs,tools:[{name:"guide_reply",description:"Send your reply to the user.",input_schema:GUIDE_SCHEMA}],tool_choice:{type:"tool",name:"guide_reply"}};
+    pick=j=>(j.content||[]).find(c=>c.type==="tool_use")?.input||(j.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("")}
+  else if(s.provider==="openai"){url="https://api.openai.com/v1/chat/completions";headers.authorization="Bearer "+s.key;
+    body={model:s.model,response_format:{type:"json_object"},messages:[{role:"system",content:sys},...msgs]};pick=j=>j.choices?.[0]?.message?.content}
+  else{url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model)}:generateContent`;headers["x-goog-api-key"]=s.key;
+    body={systemInstruction:{parts:[{text:sys}]},contents:msgs.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content}]})),generationConfig:{responseMimeType:"application/json"}};
+    pick=j=>(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("")}
+  let res;try{res=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  let j={};try{j=await res.json()}catch{}
+  if(!res.ok){if(res.status===401||res.status===403)throw{code:"bad_key"};if(res.status===429)throw{code:"rate_limited"};
+    throw{code:"api",message:`The AI service said: ${j.error?.message||`HTTP ${res.status}`}`}}
+  const out=pick(j);return out&&typeof out==="object"?out:parseJSON(out);
+}
+async function askGuideClaude(b,signal){
+  const msgs=wire(b);
+  return await state.sample.json([{role:"user",content:guideSystem(b.car)+"\n\nThe conversation so far follows. Reply to the user's last message."},{role:"assistant",content:"{\"reply\":\"Understood.\"}"},...msgs],{signal});
+}
+async function sendGuide(text){
+  const b=state.build;if(!b)return;
+  if(state.mode==="pending"){setTimeout(()=>sendGuide(text),400);return}
+  if(state.mode==="none"){drawBuild(`<div class="chat-err">Creative mode isn’t available in this view. Open the page in the Claude app or on claude.ai.</div>`);return}
+  if(state.mode==="api"&&!getSettings().key){show("home");$("settings").hidden=false;$("s-key").focus();setMsg("Add an API key to use Creative mode. You only do this once.");return}
+  if(state.mode==="server"&&state.accounts&&!state.session){$("say").value=text;openAcct("signin","Create a free account to use Creative mode. It comes with free scans every month.");return}
+  if(state.pending.has(b.id))return;                 // one question at a time per build
+  b.msgs.push({r:"u",t:text});saveBuild(b);
+  await runGuide(b);
+}
+async function runGuide(b=state.build){
+  if(!b)return;
+  state.pending.get(b.id)?.abort();
+  const ctl=new AbortController();state.pending.set(b.id,ctl);state.liveText.delete(b.id);
+  const here=()=>state.build===b&&!$("bChat").hidden;
+  if(here()){$("sayBtn").disabled=true;drawBuild();window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"})}
+  try{
+    const onP=t=>{if(state.pending.get(b.id)!==ctl)return;const had=state.liveText.has(b.id);state.liveText.set(b.id,t);
+      if(!here())return;if(had&&$("gLive"))$("gLive").innerHTML=sayHTML(t);else drawBuild()};
+    const d=state.mode==="server"?await askGuideServer(b,ctl.signal,onP):state.mode==="claude"?await askGuideClaude(b,ctl.signal):await askGuideAPI(b,ctl.signal);
+    if(!d||typeof d!=="object")throw{code:"invalid_json"};
+    if(state.pending.get(b.id)!==ctl)return;
+    state.pending.delete(b.id);state.liveText.delete(b.id);
+    if(d.car&&typeof d.car==="object")for(const k of CAR_FIELDS){const v=d.car[k];if(typeof v==="string"&&v.trim()&&!b.car[k])b.car[k]=v.trim().slice(0,120)}
+    b.msgs.push({r:"a",d});saveBuild(b);
+    if(here()){drawBuild();const all=document.querySelectorAll("#chat .ai");all[all.length-1]?.scrollIntoView({behavior:"smooth",block:"start"})}
+    else if(!$("bSetup").hidden)drawSaved();
+  }catch(e){
+    if(state.pending.get(b.id)!==ctl)return;
+    state.pending.delete(b.id);state.liveText.delete(b.id);
+    if(!$("bSetup").hidden)drawSaved();
+    if(!here())return;
+    const msg=e?.code==="cancelled"?"Stopped.":e?.code==="guide_setup"?"Creative mode isn’t set up on the server yet: run the latest database script in Supabase."
+      :e?.code==="no_credits"?ERR.no_credits:(e?.message&&(e.code==="api"||e.code==="timeout")?e.message:(ERR[e?.code]||"The guide didn’t answer. Try again."));
+    drawBuild(`<div class="chat-err"><span>${esc(msg)}</span><button class="btn small" type="button" id="gRetry">Try again</button></div>`);
+    $("gRetry").onclick=()=>runGuide(b);
+  }finally{if(!state.pending.has(b.id)&&state.build===b)$("sayBtn").disabled=false}
+}
+// leave the chat: it is already saved; the next build starts its own guide session
+$("bExit").onclick=()=>{if(state.build)saveBuild(state.build);openBuild();window.scrollTo(0,0)};
+$("bNew").onclick=()=>{if(state.build)saveBuild(state.build);openBuild();window.scrollTo(0,0);$("c-make").focus()};
+
+/* ---------- boot ---------- */
+renderExample();drawRecent();
+(async()=>{
+  if(window.claude){                                  // inside Claude: use the viewer’s Claude
+    let s=null;try{s=await window.claude.use("sample")}catch{}
+    if(s){const lim=await s.limits().catch(()=>null);if(lim?.images){state.sample=s;state.mode="claude";if(needsScan())analyze();return}}
+    state.mode="none";if(needsScan())analyze();return;
+  }
+  if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+  // hosted with the server function: the key lives on the server
+  try{
+    const res=await fetch(API_PATH,{cache:"no-store"});
+    const j=res.ok?await res.json():null;
+    if(j)setDonate(j.donateUrl);
+    if(j?.ok){
+      state.mode="server";state.needsCode=!!j.needsCode;
+      state.guideReplies=j.guide?.replies||null;
+      if(j.accounts){state.payments=j.payments;state.promo=j.promo||null;await startAccounts(j.accounts)}
+      if(state.needsCode&&!store.get("spotter-code",""))$("accessForm").hidden=false;
+      if(needsScan())analyze();
+      return;
+    }
+  }catch{}
+  state.mode="api";                                   // no server: your own API key
+  $("settingsBtn").hidden=false;fillSettings();
+  if(!getSettings().key){$("settings").hidden=false;setMsg("Add an API key to start. You only do this once.")}
+  if(needsScan())analyze();
+})();
+</script>
+
+</body>
+</html>
