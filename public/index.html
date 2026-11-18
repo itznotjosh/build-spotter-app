@@ -1,0 +1,2173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#141210">
+<meta name="description" content="Take a photo of any car. Build Spotter names the car, lists the parts it can see, and links you to where to buy them.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Spotter">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>Build Spotter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<style>
+/* Build Spotter. One typeface (Archivo, three widths), a dark shop-floor background, and one loud surface:
+   the cream "show card" that names the car, like the spec card owners leave on the dash at a meet.
+   Amber is the working light: the main action, progress, and confidence dots. Nothing else is coloured. */
+:root{
+  --floor:#141210; --bench:#1d1a16; --bench-2:#262219;
+  --rule:rgba(236,229,214,.13); --rule-2:rgba(236,229,214,.3);
+  --paper:#ece5d6; --ink:#17140f; --ink-2:rgba(23,20,15,.66);
+  --text:#ece5d6; --text-2:#b9b1a1; --text-3:#938b7b;
+  --lamp:#e9ae3b; --lamp-hi:#f4c058; --lamp-ink:#1b1405; --bad:#f29179;
+  --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --gutter:max(20px,env(safe-area-inset-left,0px));
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--floor);-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--floor);color:var(--text);font:400 16px/1.5 var(--font);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,dl,dd,figure{margin:0}
+img{max-width:100%;display:block}
+a{color:inherit}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--lamp);outline-offset:3px;border-radius:4px}
+
+.page{max-width:600px;margin:0 auto;padding:0 var(--gutter) 40px}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
+.brand{appearance:none;border:0;padding:8px 11px 7px;border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer;font-weight:900;font-stretch:125%;font-size:13px;line-height:1;letter-spacing:.015em;text-transform:uppercase}
+.brand,.pill{white-space:nowrap}
+@media (max-width:350px){.brand{font-size:11.5px;padding:7px 9px 6px}.pill{padding:0 11px;font-size:13px;gap:6px}}
+.top-right{display:flex;align-items:center;gap:8px}
+.pill{appearance:none;display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--rule-2);background:transparent;font-weight:600;font-size:14px;cursor:pointer}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--lamp)}
+.pill.out::before{background:var(--bad)}
+.pill:hover{border-color:var(--paper)}
+
+/* buttons */
+.btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 20px;border-radius:12px;border:1px solid var(--rule-2);background:transparent;color:var(--text);font-weight:650;font-size:16px;line-height:1.1;text-decoration:none;text-align:center;cursor:pointer}
+.btn:hover{border-color:var(--paper)}
+.btn.primary{background:var(--lamp);border-color:var(--lamp);color:var(--lamp-ink);font-weight:750}
+.btn.primary:hover{background:var(--lamp-hi);border-color:var(--lamp-hi)}
+.btn.light{background:var(--paper);border-color:var(--paper);color:var(--ink)}
+.btn.light:hover{background:#f6f0e3}
+.btn.small{min-height:38px;padding:0 14px;border-radius:10px;font-size:14px;font-weight:600}
+.btn.big{min-height:58px;font-size:17px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn svg{flex:none}
+.textbtn{appearance:none;background:none;border:0;padding:6px 0;color:var(--text-2);font-size:14px;font-weight:500;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--rule-2);cursor:pointer}
+.textbtn:hover{color:var(--text);text-decoration-color:currentColor}
+.note{font-size:14px;line-height:1.5;color:var(--text-2)}
+
+/* home */
+.hero{padding:22px 0 8px;display:flex;flex-direction:column;gap:14px}
+.hero h1{font-weight:900;font-stretch:125%;font-size:clamp(31px,9.1vw,46px);line-height:.96;letter-spacing:-.015em;text-transform:uppercase;text-wrap:balance}
+.lede{font-size:17px;line-height:1.5;color:var(--text-2);max-width:34em}
+.cta{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.cta .btn{width:100%}
+.fine{font-size:14px;color:var(--text-2)}
+.fine .textbtn{padding:0;font-size:inherit}
+body:not(.touch) #camLabel{display:none}
+.drop-hint{display:none}
+body:not(.touch) .drop-hint{display:block}
+
+.sec{margin-top:44px;display:flex;flex-direction:column;gap:14px}
+.sec-head{display:flex;flex-direction:column;gap:4px}
+.sec-head h2{font-weight:750;font-stretch:108%;font-size:20px;line-height:1.2;letter-spacing:-.005em}
+.recent{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:0 calc(var(--gutter)*-1);padding-inline:var(--gutter);scrollbar-width:none}
+.recent::-webkit-scrollbar{display:none}
+.recent button{appearance:none;flex:none;width:132px;padding:0;background:var(--bench);border:1px solid var(--rule);border-radius:12px;overflow:hidden;text-align:left;cursor:pointer}
+.recent button:hover{border-color:var(--rule-2)}
+.recent img{width:100%;height:92px;object-fit:cover}
+.recent span{display:block;padding:8px 10px 10px;font-size:13px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* panels (setup, access code) */
+.panel{margin-top:22px;padding:18px;border-radius:14px;background:var(--bench);border:1px solid var(--rule);display:flex;flex-direction:column;gap:14px}
+.panel h2{font-weight:750;font-size:18px;line-height:1.25}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.fields .full{grid-column:1/-1}
+@media (max-width:480px){.fields{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;color:var(--text-2)}
+input,textarea,select{width:100%;background:var(--floor);color:var(--text);border:1px solid var(--rule-2);border-radius:10px;padding:13px 14px;font:400 16px/1.35 var(--font)}
+input::placeholder,textarea::placeholder{color:var(--text-3)}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--lamp);outline-offset:1px;border-radius:10px}
+textarea{min-height:84px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* photo */
+.photo{position:relative;overflow:hidden;border-radius:16px;background:#0c0b09}
+.photo img{width:100%;height:auto;max-height:64vh;object-fit:contain}
+.photo.scanning img{filter:brightness(.62) saturate(.8)}
+.scanline{position:absolute;left:0;right:0;top:4%;height:2px;background:var(--lamp);box-shadow:0 0 18px 3px rgba(233,174,59,.55);animation:scan 1.5s ease-in-out infinite alternate;pointer-events:none}
+@keyframes scan{from{top:4%}to{top:95%}}
+body.drag .droptarget{outline:2px dashed var(--lamp);outline-offset:6px;border-radius:16px}
+
+/* status line */
+.status{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px 12px 12px 16px;border-radius:12px;background:var(--bench);border:1px solid var(--rule);font-size:15px;font-weight:500;line-height:1.4}
+.status > span:not(.spin){flex:1;min-width:0}
+.status.err{border-color:rgba(242,145,121,.45);color:#f6c2b3}
+.status .btn{flex:none}
+.spin{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--rule-2);border-top-color:var(--lamp);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* result: show card */
+.result{display:flex;flex-direction:column}
+.result.busy{opacity:.4;transition:opacity .2s}
+.result.fresh .plate{animation:land .42s cubic-bezier(.2,.8,.2,1)}
+.result.fresh > :not(.plate){animation:fadein .5s .12s both}
+@keyframes land{from{transform:translateY(-14px);opacity:0}}
+@keyframes fadein{from{opacity:0}}
+.plate{background:var(--paper);color:var(--ink);border-radius:16px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:14px}
+.attached .photo{border-radius:16px 16px 0 0}
+.attached .plate{border-radius:0 0 16px 16px}
+.plate .yr{font-size:15px;font-weight:650;line-height:1.2;color:var(--ink-2)}
+.plate h2{font-weight:900;font-stretch:125%;font-size:clamp(25px,7.6vw,38px);line-height:.96;letter-spacing:-.012em;text-transform:uppercase;overflow-wrap:break-word;text-wrap:balance}
+.plate .namewrap{display:flex;flex-direction:column;gap:6px}
+.plate .top-line{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.imprint{font-weight:900;font-stretch:125%;font-size:9.5px;line-height:1;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+.facts{display:flex;flex-wrap:wrap;gap:10px 16px;padding-top:12px;border-top:1px solid rgba(23,20,15,.18)}
+.facts div{flex:1 1 76px;min-width:0}
+.facts div.wide{flex:1.8 1 100px}
+.facts dt{font-size:12.5px;font-weight:500;line-height:1.3;color:var(--ink-2)}
+.facts dd{font-size:15px;font-weight:650;line-height:1.3;overflow-wrap:anywhere}
+.match{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 2px 0;font-size:15px;font-weight:600}
+.match .textbtn{padding:4px 0}
+.conf{display:inline-flex;gap:3px;margin-right:9px;vertical-align:.08em}
+.conf i{width:7px;height:7px;border-radius:50%;background:var(--rule-2)}
+.conf.high i,.conf.medium i:nth-child(-n+2),.conf.low i:first-child{background:var(--lamp)}
+.summary{padding:12px 2px 0;font-size:16px;line-height:1.55;color:var(--text-2)}
+.carlinks{display:flex;gap:18px;flex-wrap:wrap;padding:10px 2px 0}
+.xl{font-size:14px;font-weight:550;color:var(--text-2);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--rule-2)}
+.xl:hover{color:var(--text);text-decoration-color:currentColor}
+.nameedit{margin-top:14px;padding:16px;border-radius:14px;background:var(--bench);border:1px solid var(--rule);display:flex;flex-direction:column;gap:12px}
+.banner{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:14px;font-weight:600;color:var(--text-2)}
+
+/* parts */
+.group{margin-top:30px}
+.group-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--rule-2)}
+.group-head h3{font-weight:900;font-stretch:125%;font-size:17px;line-height:1.15;letter-spacing:.005em;text-transform:uppercase}
+.group-head span{font-size:14px;color:var(--text-3)}
+.part{padding:16px 0 18px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:7px}
+.part h4{margin:0;font-weight:700;font-size:17.5px;line-height:1.3}
+.spec{display:flex;flex-wrap:wrap;gap:1px 16px;font-size:14.5px;line-height:1.45;color:var(--text)}
+.why{font-size:14.5px;line-height:1.5;color:var(--text-2)}
+.why b{font-weight:650;color:var(--text)}
+.alts{font-size:14.5px;line-height:1.5;color:var(--text-2)}
+.alts em{font-style:normal;color:var(--text)}
+.plinks{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;margin-top:6px}
+.shop{display:inline-flex;align-items:center;min-height:38px;padding:0 15px;border-radius:10px;background:var(--paper);color:var(--ink);font-size:14.5px;font-weight:700;text-decoration:none}
+.shop:hover{background:#f6f0e3}
+.tip{margin-top:22px;padding:14px 16px;border-radius:12px;background:var(--bench);font-size:15px;line-height:1.5;color:var(--text-2)}
+.tip b{color:var(--text);font-weight:650}
+.caveat{margin-top:16px;font-size:13.5px;line-height:1.5;color:var(--text-3)}
+
+/* tell us more */
+details.more{margin-top:26px;border-radius:14px;background:var(--bench);border:1px solid var(--rule)}
+details.more summary{cursor:pointer;list-style:none;min-height:56px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:650;font-size:16px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--text-2);border-bottom:2px solid var(--text-2);transform:rotate(45deg) translate(-2px,-2px);flex:none}
+details.more[open] summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
+.more-body{padding:2px 16px 18px;display:flex;flex-direction:column;gap:16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{appearance:none;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--rule-2);background:transparent;font-size:14px;font-weight:550;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.fl{font-size:14px;font-weight:600;color:var(--text-2);display:flex;flex-direction:column;gap:8px}
+
+/* scan-again dock */
+.dock{position:sticky;bottom:0;z-index:5;margin:28px calc(var(--gutter)*-1) 0;padding:12px var(--gutter) calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,rgba(20,18,16,0),var(--floor) 26%);display:none;gap:10px}
+#scan.done .dock{display:flex}
+#scan .dock.wide{display:none}
+.dock .btn{flex:1;min-width:0;padding:0 12px;white-space:nowrap}
+
+/* footer */
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.55;color:var(--text-3)}
+footer a{color:var(--text-2)}
+
+/* account sheet */
+dialog.sheet{border:0;padding:0;width:100%;max-width:480px;max-height:92dvh;margin:auto auto 0;border-radius:22px 22px 0 0;background:var(--bench);color:var(--text);overflow:auto;overscroll-behavior:contain}
+dialog.sheet:focus{outline:none}
+dialog.sheet::backdrop{background:rgba(8,7,5,.66)}
+dialog.sheet[open]{animation:rise .24s cubic-bezier(.2,.8,.2,1)}
+@keyframes rise{from{transform:translateY(28px);opacity:0}}
+@media (min-width:620px){dialog.sheet{margin:auto;border-radius:20px}}
+.sheet-in{padding:20px 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:16px}
+.sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.sheet-head h2{font-weight:800;font-stretch:112%;font-size:24px;line-height:1.12;letter-spacing:-.015em;text-wrap:balance}
+.x{appearance:none;flex:none;width:38px;height:38px;margin:-6px -8px 0 0;border-radius:50%;border:0;background:var(--bench-2);cursor:pointer;display:grid;place-items:center}
+.x:hover{background:#322d22}
+.msg{padding:12px 14px;border-radius:10px;background:var(--bench-2);font-size:14.5px;line-height:1.45}
+.msg.err{color:#f6c2b3;box-shadow:inset 3px 0 0 var(--bad)}
+.sheet form{display:flex;flex-direction:column;gap:14px}
+.seg{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:var(--floor)}
+.seg button{appearance:none;min-height:42px;border:0;border-radius:9px;background:transparent;color:var(--text-2);font-size:15px;font-weight:600;cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--bench-2);color:var(--text);box-shadow:0 0 0 1px var(--rule-2)}
+.passwrap{position:relative}
+.passwrap input{padding-right:70px}
+.passwrap button{position:absolute;right:6px;top:50%;transform:translateY(-50%);appearance:none;border:0;background:none;padding:8px 10px;font-size:14px;font-weight:600;color:var(--text-2);cursor:pointer}
+.bal{display:flex;align-items:center;gap:16px;padding:16px;border-radius:14px;background:var(--floor)}
+.bal .big{font-weight:900;font-stretch:125%;font-size:56px;line-height:.9;letter-spacing:-.02em}
+.bal .of{display:flex;flex-direction:column;gap:2px;font-size:16px;font-weight:650;line-height:1.3}
+.bal .of span:last-child{font-size:14px;font-weight:400;color:var(--text-2)}
+.packs{display:flex;flex-direction:column;gap:8px}
+.pack{appearance:none;display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px;padding:14px 16px;border-radius:12px;border:1px solid var(--rule-2);background:transparent;text-align:left;cursor:pointer}
+.pack:hover{border-color:var(--paper);background:rgba(236,229,214,.04)}
+.pack .n{font-size:17px;font-weight:700;line-height:1.25}
+.pack .tag{margin-left:8px;padding:2px 8px;border-radius:999px;background:var(--lamp);color:var(--lamp-ink);font-size:12px;font-weight:700;vertical-align:1px;white-space:nowrap}
+.pack .p{grid-row:1/3;grid-column:2;font-size:18px;font-weight:750}
+.pack .each{font-size:14px;color:var(--text-2)}
+.pack:disabled{opacity:.45;cursor:wait}
+.sheet h3{font-weight:700;font-size:16px;line-height:1.3}
+.who{font-size:14.5px;color:var(--text-2);overflow-wrap:anywhere}
+
+/* sale notice: a cream strip across the top, the same paper as the show card, with a live countdown */
+.deal{background:var(--paper);color:var(--ink)}
+.deal-in{max-width:600px;margin:0 auto;padding:10px var(--gutter) 11px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 14px}
+.deal-tag{justify-self:start;padding:5px 8px 4px;border-radius:5px;background:var(--ink);color:var(--paper);font-weight:900;font-stretch:125%;font-size:10.5px;line-height:1;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.deal-left{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.deal p{font-size:15px;font-weight:600;line-height:1.3}
+.deal p b{font-weight:850}
+.deal-right{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.clock{display:flex;align-items:baseline;gap:5px;white-space:nowrap}
+.clock small{font-size:12.5px;font-weight:550;color:var(--ink-2);margin-right:2px}
+.clock span{font-weight:900;font-stretch:118%;font-size:17px;line-height:1;letter-spacing:-.01em}
+.clock i{font-style:normal;font-weight:600;font-size:12px;color:var(--ink-2);margin-left:1px}
+.deal .btn{white-space:nowrap;min-height:36px;padding:0 13px;border-radius:9px;font-size:14px;background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.deal .btn:hover{background:#2c271e;border-color:#2c271e}
+@media (max-width:420px){.deal-in{grid-template-columns:1fr}.deal-right{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 10px;width:100%}.clock span{font-size:16px}.clock{gap:4px}}
+@media (min-width:980px){.deal-in{max-width:1080px;padding-inline:32px;grid-template-columns:auto minmax(0,1fr) auto}.deal-left{flex-direction:row;align-items:center;gap:14px;grid-column:1/3}.deal-right{flex-direction:row;align-items:center;gap:18px}}
+
+/* mode tabs: Scan / Creative mode */
+.tabs{display:flex;gap:4px;margin:2px 0 6px;border-bottom:1px solid var(--rule)}
+.tabs button{appearance:none;position:relative;border:0;background:none;padding:12px 4px 13px;margin-right:18px;color:var(--text-2);font-weight:650;font-size:15.5px;cursor:pointer}
+.tabs button:hover{color:var(--text)}
+.tabs button[aria-current="page"]{color:var(--text)}
+.tabs button[aria-current="page"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--lamp)}
+
+/* ===== creative mode =====
+   Two places: setup (pick or start a build) and the workspace (the guide's chat beside "My build": the parts chosen
+   and the 3D car). On phones the workspace has two tabs; from 980px the two sit side by side.
+   Quiet by default: one amber action per moment, everything secondary as plain links or folded away. */
+.cm-entry{margin-top:30px;padding:18px;border-radius:16px;background:var(--bench);border:1px solid var(--rule);display:flex;flex-direction:column;gap:14px}
+.cm-entry h2{font-weight:800;font-stretch:112%;font-size:22px;line-height:1.15;letter-spacing:-.01em;margin-top:8px}
+.cm-entry .note{margin-top:6px}
+.cm-tag{display:inline-block;padding:5px 8px 4px;border-radius:5px;background:var(--paper);color:var(--ink);font-weight:900;font-stretch:125%;font-size:10.5px;line-height:1;letter-spacing:.03em;text-transform:uppercase}
+.cm-entry .btn{align-self:flex-start}
+#build{padding-top:6px;position:relative}
+/* signed out: Creative mode stays visible but blurred behind a sign-in card */
+#build.locked>#bSetup,#build.locked>#bChat{filter:blur(7px);opacity:.55;pointer-events:none;user-select:none}
+.cm-lock{position:absolute;inset:0;z-index:20;display:flex;justify-content:center;align-items:flex-start;padding:min(18vh,140px) 0 40px}
+.cm-lock-card{position:sticky;top:90px;width:min(100%,420px);padding:22px;border-radius:18px;background:var(--bench);border:1px solid var(--rule-2);box-shadow:0 20px 60px rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+.cm-lock-card h2{font-weight:800;font-stretch:112%;font-size:24px;line-height:1.15;letter-spacing:-.01em}
+.cm-lock-card ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px;line-height:1.45;color:var(--text-2)}
+.cm-lock-card .btn{align-self:stretch}
+.cm-lock-card .textbtn{align-self:center}
+.opt{font-weight:400;color:var(--text-3)}
+
+/* setup */
+.saved{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.saved h2,.newhead{font-weight:750;font-stretch:108%;font-size:18px}
+.newhead{margin-top:30px}
+.saved-list{display:flex;flex-direction:column;gap:8px}
+.saved-list button{appearance:none;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:1px solid var(--rule);background:var(--bench);text-align:left;cursor:pointer}
+.saved-list button:hover{border-color:var(--rule-2)}
+.sv-name{display:flex;align-items:center;gap:8px;min-width:0}
+.sv-name b{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-sub{font-size:13.5px;color:var(--text-3);white-space:nowrap}
+.badge{font-style:normal;padding:2px 6px;border-radius:5px;background:var(--bench-2);border:1px solid var(--rule-2);font-size:11px;font-weight:700;color:var(--text-2)}
+.bhead{display:flex;flex-direction:column;gap:8px;padding:10px 0 4px}
+.bhead h1{font-weight:900;font-stretch:125%;font-size:clamp(28px,8vw,40px);line-height:.98;letter-spacing:-.015em;text-transform:uppercase}
+.newhead:not([hidden])+h1{display:none}
+.bform{margin-top:18px;display:flex;flex-direction:column;gap:18px}
+.carline{grid-template-columns:minmax(0,.7fr) minmax(0,1fr) minmax(0,1.3fr)}
+@media (max-width:480px){.carline{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)}.carline .f:last-child{grid-column:1/-1}}
+.req{color:var(--lamp);font-weight:700}
+details.morecar{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+details.morecar summary,details.gopts summary{cursor:pointer;padding:14px 0;font-weight:600;font-size:15px;color:var(--text)}
+details.morecar .fields{padding-bottom:16px}
+
+/* workspace head */
+.ws-head{display:flex;flex-direction:column;gap:12px;padding-top:4px}
+.ws-nav{display:flex;justify-content:space-between;align-items:center}
+.backlink{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:15px;font-weight:600;color:var(--text-2)}
+.backlink:hover{color:var(--text)}
+.wsplate{padding:14px 16px;gap:4px}
+.wsplate h2{font-size:clamp(22px,6.4vw,30px)}
+.wsplate .top-line .textbtn{padding:0;color:var(--ink-2);text-decoration-color:rgba(23,20,15,.3);font-size:13.5px}
+.pfacts{font-size:14px;line-height:1.4;color:var(--ink-2);margin-top:4px}
+/* scans and guide replies: two labelled meters, never mixed */
+.usage{display:flex;flex-direction:column;gap:6px}
+.meters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.meter{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"k v" "s s";align-items:baseline;gap:2px 10px;padding:10px 12px;border-radius:12px;background:var(--bench);border:1px solid var(--rule)}
+.meter .m-k{grid-area:k;font-size:13px;font-weight:650;color:var(--text-2)}
+.meter .m-v{grid-area:v;justify-self:end;font-weight:850;font-stretch:115%;font-size:20px;line-height:1}
+.meter .m-v small{font-size:13px;font-weight:600;color:var(--text-3)}
+.meter .m-s{grid-area:s;font-size:12.5px;line-height:1.35;color:var(--text-3)}
+.meter.low{border-color:var(--lamp)}
+@media (max-width:360px){.meter{grid-template-columns:1fr;grid-template-areas:"k" "v" "s"}.meter .m-v{justify-self:start}}
+.usage>.textbtn{align-self:flex-start;padding:2px 0;font-size:13px}
+.usage-help{padding:12px 14px;border-radius:12px;background:var(--bench);font-size:14px;line-height:1.5;color:var(--text-2);display:flex;flex-direction:column;gap:8px}
+.usage-help b{color:var(--text);font-weight:650}
+.ws-tabs{display:grid;grid-template-columns:1fr 1fr;margin:12px calc(var(--gutter)*-1) 0;padding:8px var(--gutter);background:var(--floor);position:sticky;top:0;z-index:6;box-shadow:0 1px 0 var(--rule)}
+.ws-tabs::before{content:"";position:absolute;inset:8px var(--gutter);border-radius:12px;background:var(--bench);border:1px solid var(--rule);z-index:-1}
+.ws-tabs button{appearance:none;min-height:42px;margin:4px;border:0;border-radius:9px;background:transparent;color:var(--text-2);font-size:15px;font-weight:650;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.ws-tabs button[aria-selected="true"]{background:var(--bench-2);color:var(--text);box-shadow:0 0 0 1px var(--rule-2)}
+.count:empty{display:none}
+.count{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--lamp);color:var(--lamp-ink);font-size:12.5px;font-weight:800;display:inline-grid;place-items:center}
+
+/* panes */
+.ws{margin-top:14px}
+.ws[data-tab="chat"] .ws-side,.ws[data-tab="build"] .ws-chat{display:none}
+.ws-side{display:flex;flex-direction:column;gap:12px}
+.card{border-radius:16px;background:var(--bench);border:1px solid var(--rule);padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.card-head h3{font-weight:750;font-size:16px}
+.card-head span{font-size:13px;color:var(--text-3)}
+.empty{font-size:14.5px;line-height:1.5;color:var(--text-2)}
+.empty b{color:var(--text);font-weight:650}
+
+/* parts you chose */
+.blist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.bi{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--rule)}
+.bi:first-child{border-top:0;padding-top:2px}
+.bi.fresh{animation:fresh 1.6s ease-out}
+@keyframes fresh{0%,30%{background:rgba(233,174,59,.16);box-shadow:-16px 0 0 rgba(233,174,59,.16),16px 0 0 rgba(233,174,59,.16)}}
+.bi-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.bi-cat{font-size:12px;font-weight:600;color:var(--text-3)}
+.bi-main b{font-weight:650;font-size:15px;line-height:1.3}
+.bi-d{font-size:13px;color:var(--text-2)}
+.bi-3d{font-size:12px;color:var(--lamp-hi);margin-top:2px}
+.bi-3d.on{color:var(--text-3)}
+.bi-side{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;gap:6px;flex:none;text-align:right}
+.bi-price{font-size:13.5px;font-weight:650;white-space:nowrap}
+.bi-acts{display:flex;gap:12px;align-items:center}
+.bi-acts a,.bi-x{font-size:13px;font-weight:550;color:var(--text-2);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--rule-2)}
+.bi-acts a:hover,.bi-x:hover{color:var(--text)}
+.btotal{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--rule-2);font-size:14px;color:var(--text-2)}
+.btotal b{margin-left:auto;font-size:17px;font-weight:800;color:var(--text)}
+.btotal small{width:100%;text-align:right;font-size:12.5px;color:var(--text-3)}
+#ownBtn{align-self:flex-start;padding:2px 0}
+.ownform{display:flex;gap:8px;align-items:center}
+.ownform input{min-height:42px;padding:9px 12px;font-size:15px}
+.ownform .btn{flex:none}
+
+/* chat */
+.chat{display:flex;flex-direction:column;gap:22px}
+.bubble{align-self:flex-end;max-width:86%;padding:11px 14px;border-radius:16px 16px 4px 16px;background:var(--bench-2);border:1px solid var(--rule);font-size:16px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai{display:flex;flex-direction:column;gap:12px}
+.ai-who{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-3)}
+.ai-who::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--lamp)}
+.say{display:flex;flex-direction:column;gap:9px;font-size:16px;line-height:1.55}
+.say ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.say b{font-weight:700}
+.ask{padding:14px 16px;border-radius:14px;border:1px solid var(--rule-2);background:var(--bench);display:flex;flex-direction:column;gap:14px}
+.ask-q{display:flex;flex-direction:column;gap:9px}
+.ask-q p{font-weight:650;font-size:15.5px;line-height:1.4}
+.ask .chips{gap:7px}
+.ask.answered{opacity:.6}
+/* a suggested part: what it is, one action, the rest folded */
+.gparts{display:flex;flex-direction:column;gap:10px}
+.gpart{padding:14px 16px;border-radius:14px;background:var(--bench);border:1px solid var(--rule);display:flex;flex-direction:column;gap:6px}
+.gp-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.gp-cat{font-size:12.5px;font-weight:650;color:var(--text-3)}
+.gp-price{font-size:14px;font-weight:650;color:var(--text)}
+.gpart h4{margin:0;font-weight:700;font-size:17px;line-height:1.3}
+.gp-spec{display:flex;flex-wrap:wrap;gap:1px 14px;font-size:14px;line-height:1.45;color:var(--text)}
+.gp-why{font-size:14.5px;line-height:1.5;color:var(--text-2)}
+.gp-fits{font-size:13.5px;line-height:1.45;color:var(--text-2)}
+.gp-fits b{font-weight:650;color:var(--text);margin-right:4px}
+.gp-acts{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;margin-top:6px}
+.addb{appearance:none;display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--lamp);background:transparent;color:var(--lamp-hi);font-size:14.5px;font-weight:700;cursor:pointer}
+.addb:hover{background:rgba(233,174,59,.08)}
+.addb[aria-pressed="true"]{background:var(--lamp);color:var(--lamp-ink)}
+.gp-acts .xl{font-size:14px}
+.gp-acts .textbtn{padding:0;font-size:14px}
+details.gp-more summary{cursor:pointer;font-size:13.5px;font-weight:550;color:var(--text-3);padding:4px 0;list-style-position:inside}
+details.gp-more[open] summary{margin-bottom:6px}
+details.gp-more p{font-size:14px;line-height:1.5;color:var(--text-2);margin-top:4px}
+details.gp-more p b{color:var(--text);font-weight:650}
+details.gp-more em{font-style:normal;color:var(--text)}
+.gp-links{display:flex;gap:16px;flex-wrap:wrap}
+details.gfold summary{cursor:pointer;font-weight:700;font-size:15px;padding:2px 0}
+details.gfold[open] summary{margin-bottom:8px}
+.steps{margin:0;padding:14px 16px 14px 34px;border-radius:12px;background:var(--bench);font-size:15px;line-height:1.5;display:flex;flex-direction:column;gap:5px}
+.warn-h{font-weight:750;font-size:15px}
+.warn{padding:12px 14px;border-radius:12px;background:var(--bench);box-shadow:inset 3px 0 0 var(--lamp);font-size:14.5px;line-height:1.5;color:var(--text-2);display:flex;flex-direction:column;gap:4px}
+.warn p{margin:0}
+.gask{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--bench);border:1px solid var(--rule-2);font-size:15px}
+.gask b{font-weight:650}
+.thinking{display:flex;align-items:center;gap:12px;font-size:15px;color:var(--text-2)}
+.chat-err{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--bench);box-shadow:inset 3px 0 0 var(--bad);font-size:15px;color:#f6c2b3}
+.starters{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+.starters p{font-size:14px;font-weight:600;color:var(--text-2)}
+.composer{position:sticky;bottom:0;z-index:5;margin:22px calc(var(--gutter)*-1) 0;padding:12px var(--gutter) calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,rgba(20,18,16,0),var(--floor) 22%);display:flex;flex-direction:column;gap:6px}
+.composer-row{display:flex;gap:8px;align-items:flex-end}
+.composer textarea{min-height:52px;max-height:160px;resize:none;border-radius:14px;background:var(--bench);padding:14px}
+.composer .btn{flex:none;min-height:52px;padding:0 18px}
+.meter-line{font-size:13px;color:var(--lamp-hi);padding-left:4px}
+.linkbtn{appearance:none;background:none;border:0;padding:0;cursor:pointer;font:inherit}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:14px;width:max-content;max-width:min(92vw,440px);padding:11px 16px;border-radius:12px;background:var(--paper);color:var(--ink);font-size:14.5px;box-shadow:0 8px 30px rgba(0,0,0,.45);animation:toastin .22s ease-out}
+.toast b{font-weight:700}
+.toast .textbtn{color:var(--ink);text-decoration-color:rgba(23,20,15,.4);font-weight:700;padding:0}
+.toast.out{opacity:0;transition:opacity .25s}
+@keyframes toastin{from{transform:translate(-50%,10px);opacity:0}}
+
+/* 3D car */
+.garage .note{font-size:14px}
+details.gopts summary{padding:4px 0;font-size:14px;color:var(--text-2)}
+.gopts-in{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:8px 0 4px}
+.gopts-in .f{align-self:stretch}
+#gOff{display:flex;flex-direction:column;gap:10px}
+.gerr{font-size:14px;color:#f6c2b3}
+.gerr:empty{display:none}
+.gshots{display:flex;gap:8px;flex-wrap:wrap}
+.gshots:empty{display:none}
+.gshots figure{position:relative;width:74px;height:56px;border-radius:8px;overflow:hidden;background:var(--floor)}
+.gshots img{width:100%;height:100%;object-fit:cover}
+.gshots button{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(20,18,16,.8);font-size:14px;line-height:1;cursor:pointer}
+#gOnWrap{display:flex;flex-direction:column;gap:10px}
+.g3d{position:relative;margin:0 -16px;aspect-ratio:4/3;max-height:52vh;background:radial-gradient(ellipse at 50% 70%,#2a251e 0%,#16130f 70%);cursor:grab;touch-action:pan-y}
+.g3d:active{cursor:grabbing}
+.g3d canvas{display:block;width:100%!important;height:100%!important;outline:none}
+.g3d-msg{position:absolute;inset:0;display:grid;place-items:center;padding:20px;text-align:center;font-size:15px;line-height:1.45;color:var(--text-2)}
+.g3d-tools{position:absolute;right:10px;bottom:10px;display:flex;gap:6px}
+.g3d-tag{position:absolute;left:10px;top:10px;padding:5px 9px;border-radius:8px;background:rgba(20,18,16,.72);font-size:12.5px;font-weight:600;color:var(--text-2);backdrop-filter:blur(6px)}
+#tBuild.busy::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--lamp);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.g3d-tools button{appearance:none;min-height:32px;padding:0 10px;border-radius:9px;border:1px solid var(--rule-2);background:rgba(20,18,16,.72);font-size:13px;font-weight:600;cursor:pointer;backdrop-filter:blur(6px)}
+.g3d-tools button[aria-pressed="false"]{color:var(--text-3)}
+.gviews{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.gviews img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:var(--floor)}
+.gmeta{display:flex;flex-direction:column;gap:8px}
+.glabel{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gvers{display:flex;gap:6px;flex-wrap:wrap}
+.vchip{appearance:none;min-height:32px;padding:0 11px;border-radius:999px;border:1px solid var(--rule-2);background:transparent;font-size:13px;font-weight:650;cursor:pointer}
+.vchip[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.vchip i{font-style:normal;font-weight:500;color:var(--text-3)}
+.vchip[aria-pressed="true"] i{color:var(--ink-2)}
+.gstat{display:flex;flex-direction:column;gap:7px;font-size:14px;color:var(--text-2)}
+.gbar{height:6px;border-radius:3px;background:var(--rule);overflow:hidden}
+.gbar i{display:block;height:100%;background:var(--lamp);transition:width .6s}
+.gnote{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:var(--bench-2);font-size:14px;line-height:1.4}
+.gnote b{font-weight:650}
+.gauto{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-3)}
+.gauto input{width:17px;height:17px;flex:none;accent-color:var(--lamp)}
+
+/* the full garage window: full screen on phones, a large panel on wider screens */
+dialog.gwin{border:0;padding:0;margin:0;width:100%;max-width:100%;height:100dvh;max-height:100dvh;background:var(--floor);color:var(--text);overflow:hidden}
+dialog.gwin[open]{display:flex;flex-direction:column}
+dialog.gwin::backdrop{background:rgba(8,7,5,.8)}
+.gw-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top,0px)) var(--gutter) 10px;border-bottom:1px solid var(--rule)}
+.gw-kicker{font-size:12.5px;font-weight:650;color:var(--lamp-hi)}
+.gw-head h2{font-weight:900;font-stretch:125%;font-size:20px;line-height:1.05;text-transform:uppercase}
+.gw-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
+.gw-stage{flex:none;display:flex;flex-direction:column}
+.gw-view{position:relative;height:46dvh;min-height:260px;background:radial-gradient(ellipse at 50% 70%,#2a251e 0%,#16130f 70%)}
+.gw-view .g3d{position:absolute;inset:0;margin:0;aspect-ratio:auto;max-height:none}
+.gw-empty{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;color:var(--text-2)}
+.gw-under{display:flex;flex-direction:column;gap:8px;padding:12px var(--gutter) 0}
+.gw-panel{display:flex;flex-direction:column;gap:18px;padding:14px var(--gutter) calc(20px + env(safe-area-inset-bottom,0px))}
+.gw-panel h3{font-weight:750;font-size:16px;margin-bottom:6px}
+.gw-try .note{font-size:14px;margin-bottom:10px}
+.gw-form{display:flex;gap:8px;align-items:flex-end}
+.gw-form textarea{min-height:52px;max-height:120px;resize:none;border-radius:12px;background:var(--bench);padding:12px 14px;font-size:15.5px}
+.gw-form .btn{flex:none;min-height:52px}
+.gw-try .chips{margin-top:10px;gap:6px}
+.gw-try .chip{min-height:34px;font-size:13.5px}
+.gw-feed{display:flex;flex-direction:column;gap:12px}
+.gw-feed:empty{display:none}
+.gw-q{align-self:flex-end;max-width:88%;padding:9px 13px;border-radius:14px 14px 4px 14px;background:var(--bench-2);border:1px solid var(--rule);font-size:15px}
+.gw-a{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:12px;background:var(--bench);border:1px solid var(--rule)}
+.gw-a b{font-weight:700}
+.gw-a .gp-cat{font-size:12px}
+.gw-a p{font-size:14.5px;line-height:1.5;color:var(--text-2)}
+.gw-a .row{gap:10px}
+.gw-a .done{font-size:14px;font-weight:650;color:var(--lamp-hi)}
+.gw-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14.5px;color:var(--text-2)}
+.gw-list li b{color:var(--text);font-weight:600}
+#gOpen{align-self:stretch}
+@media (min-width:980px){
+  dialog.gwin{width:min(1220px,94vw);height:min(860px,92vh);margin:auto;border-radius:20px;border:1px solid var(--rule-2)}
+  .gw-head{padding:14px 22px}
+  .gw-body{flex-direction:row;overflow:hidden}
+  .gw-stage{flex:1;min-width:0;padding-bottom:16px}
+  .gw-view{flex:1;height:auto}
+  .gw-under{padding:12px 22px 0}
+  .gw-panel{width:400px;flex:none;overflow:auto;border-left:1px solid var(--rule);padding:18px 22px 22px}
+}
+@media (min-width:980px){
+  #build{max-width:1080px;margin:0 auto}
+  #bSetup{max-width:640px;margin:0 auto}
+  .ws-head{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:12px 28px;align-items:start}
+  .ws-nav{grid-column:1/-1}
+  .usage{grid-column:2;grid-row:2}
+  .ws-tabs{display:none}
+  .ws{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:28px;align-items:start;margin-top:22px}
+  .ws[data-tab] .ws-chat,.ws[data-tab] .ws-side{display:flex}
+  .ws-chat{flex-direction:column;min-width:0}
+  .ws-side{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;scrollbar-width:thin;padding-bottom:4px}
+  .composer{margin-inline:0;padding-inline:0}
+  .toast{bottom:28px}
+}
+@media (prefers-reduced-motion:reduce){.toast,.bi.fresh,#tBuild.busy::after{animation:none}}
+
+/* wide screens: photo stays put on the left while the parts list scrolls */
+@media (min-width:980px){
+  .page{max-width:1080px;padding-inline:32px}
+  .top{min-height:72px}
+  .brand{font-size:14px;padding:9px 13px 8px}
+  #home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:0 80px;align-items:start}
+  #home .hero{padding-top:64px;gap:18px}
+  #home .hero h1{font-size:60px}
+  #home .lede{font-size:19px}
+  #home .cta{max-width:340px}
+  #home .sec.example{margin-top:36px}
+  #scan{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:0 56px;align-items:start;padding-top:20px}
+  #scan .stage{position:sticky;top:24px}
+  #scan.done #dock{display:none}
+  #scan.done .dock.wide{display:flex;position:static;margin:14px 0 0;padding:0;background:none}
+  #scan.attached .photo{border-radius:16px}
+  #scan.attached .plate{border-radius:16px}
+}
+@media (prefers-reduced-motion:reduce){.scanline,.spin,dialog.sheet[open],.result.fresh .plate,.result.fresh > :not(.plate){animation:none}}
+</style>
+</head>
+<body>
+
+<aside class="deal" id="deal" aria-label="Black Friday deal" hidden>
+  <div class="deal-in">
+    <div class="deal-left">
+      <span class="deal-tag">Black Friday</span>
+      <p id="dealText"></p>
+    </div>
+    <div class="deal-right">
+      <div class="clock" id="clock" role="timer" aria-label="Time left"></div>
+      <button class="btn" type="button" id="dealBtn" hidden>Claim your scans</button>
+    </div>
+  </div>
+</aside>
+
+<div class="page">
+  <header class="top">
+    <button class="brand" id="brand" type="button" aria-label="Build Spotter home">Build Spotter</button>
+    <div class="top-right">
+      <button class="pill" id="creditPill" type="button" hidden><span id="pillText"></span></button>
+      <button class="btn small" id="acctBtn" type="button" hidden>Sign in</button>
+      <button class="btn small" id="settingsBtn" type="button" hidden>AI settings</button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mode">
+    <button type="button" id="tabScan" aria-current="page">Scan a car</button>
+    <button type="button" id="tabCreative">Creative mode</button>
+  </nav>
+
+  <input id="cam" type="file" accept="image/*" capture="environment" hidden>
+  <input id="pick" type="file" accept="image/*" hidden>
+
+  <!-- Home: one job, take a photo -->
+  <main id="home">
+    <div class="left">
+      <section class="hero droptarget">
+        <h1>Find out what&rsquo;s on any car.</h1>
+        <p class="lede">Take a photo of a car or a part. Build Spotter names the car, lists the parts it can see, and links you to where to buy them.</p>
+        <div class="cta">
+          <label class="btn primary big" for="cam" id="camLabel" tabindex="0">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5h3.6L8.5 5.5h7l1.9 3H21v10.5H3z"/><circle cx="12" cy="13.2" r="3.6"/></svg>
+            Take a photo
+          </label>
+          <label class="btn big" for="pick" id="pickLabel" tabindex="0">Choose a photo</label>
+        </div>
+        <p class="fine drop-hint">You can also drag a photo onto this page, or paste one.</p>
+        <p class="fine" id="freeLine" hidden></p>
+      </section>
+
+      <section class="cm-entry" aria-labelledby="cmTitle">
+        <div>
+          <span class="cm-tag">Creative mode</span>
+          <h2 id="cmTitle">Plan your own build</h2>
+          <p class="note">Tell the AI guide your car and what you want to do with it. It asks for anything it needs, then recommends parts that fit, with links to buy them.</p>
+        </div>
+        <button class="btn light" id="cmStart" type="button">Start planning</button>
+      </section>
+
+      <form class="panel" id="accessForm" hidden>
+        <h2>Enter your access code</h2>
+        <p class="note" id="accessMsg">This app needs an access code. You only enter it once on this device.</p>
+        <label class="f">Access code<input id="a-code" type="password" autocomplete="off" placeholder="Ask the app owner"></label>
+        <div class="row"><button class="btn light" type="submit">Save code</button></div>
+      </form>
+
+      <form class="panel" id="settings" hidden>
+        <h2>Connect an AI service</h2>
+        <p class="note">This copy of Build Spotter sends your photo to the AI service you pick, using your own API key. The key stays on this device.</p>
+        <div class="fields">
+          <label class="f">Service
+            <select id="s-provider">
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Google Gemini</option>
+            </select>
+          </label>
+          <label class="f">Model<input id="s-model" autocomplete="off" spellcheck="false"></label>
+          <label class="f full">API key<input id="s-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key"></label>
+        </div>
+        <div class="row">
+          <button class="btn light" type="submit">Save settings</button>
+          <a class="xl" id="keyLink" target="_blank" rel="noopener" href="#">Get a key</a>
+        </div>
+        <p class="note" id="settingsMsg" hidden></p>
+      </form>
+
+      <section class="sec" id="recentWrap" hidden>
+        <div class="sec-head"><h2>Your recent scans</h2></div>
+        <div class="recent" id="recent"></div>
+      </section>
+    </div>
+
+    <section class="sec example" aria-labelledby="exTitle">
+      <div class="sec-head">
+        <h2 id="exTitle">What you get back</h2>
+        <p class="note">An example scan: a photo taken at a local meet, and what Build Spotter made of it.</p>
+      </div>
+      <div id="exampleBox"></div>
+    </section>
+  </main>
+
+  <!-- Scan: the photo, then its show card and parts -->
+  <main id="scan" hidden>
+    <div class="stage">
+      <figure class="photo droptarget" id="shot">
+        <img id="preview" alt="Your photo">
+        <div class="scanline" id="scanline" hidden></div>
+      </figure>
+      <div class="dock wide">
+        <label class="btn" for="pick" tabindex="0">Scan another photo</label>
+      </div>
+    </div>
+    <div class="flow">
+      <div class="status" id="status" role="status" hidden></div>
+      <div id="results"></div>
+
+      <details class="more" id="refine" hidden>
+        <summary>Missed something? Tell us more</summary>
+        <form class="more-body" id="form">
+          <div class="fl">Look closer at
+            <div class="chips" id="chips"></div>
+          </div>
+          <label class="f">Anything you already know<textarea id="f-notes" placeholder="For example: the wheels look like TE37s, and it sits really low"></textarea></label>
+          <div class="row">
+            <button class="btn light" type="submit" id="refineBtn">Scan again</button>
+            <button class="textbtn" type="button" id="clearBtn">Clear</button>
+          </div>
+          <p class="note" id="refineCost" hidden>Scanning again uses 1 scan.</p>
+        </form>
+      </details>
+
+      <div class="dock" id="dock">
+        <label class="btn primary" for="cam" id="camAgain" tabindex="0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5h3.6L8.5 5.5h7l1.9 3H21v10.5H3z"/><circle cx="12" cy="13.2" r="3.6"/></svg>
+          Take photo
+        </label>
+        <label class="btn" for="pick" tabindex="0">Choose photo</label>
+      </div>
+    </div>
+  </main>
+
+
+  <!-- Creative mode: plan a build with the AI guide; the parts you choose and the 3D car sit beside the chat -->
+  <main id="build" hidden>
+    <div class="cm-lock" id="cmLock" hidden>
+      <div class="cm-lock-card" role="dialog" aria-labelledby="cmLockTitle">
+        <span class="cm-tag">Creative mode</span>
+        <h2 id="cmLockTitle">Make a free account to plan your build</h2>
+        <ul>
+          <li>An AI guide that knows your exact car</li>
+          <li>Your parts list with a running total</li>
+          <li>Your build in 3D, with a garage to try any part</li>
+        </ul>
+        <button class="btn primary" type="button" id="cmLockUp">Create free account</button>
+        <button class="textbtn" type="button" id="cmLockIn">I already have an account</button>
+      </div>
+    </div>
+    <div id="bSetup">
+      <section class="saved" id="savedWrap" hidden>
+        <h2>Your builds</h2>
+        <div class="saved-list" id="savedList"></div>
+      </section>
+      <div class="bhead">
+        <h2 class="newhead" id="newHead" hidden>Start a new build</h2>
+        <h1 id="setupTitle">Plan a build</h1>
+        <p class="lede">Tell the guide your car and what you're after. It asks for anything else it needs.</p>
+      </div>
+      <form class="bform" id="carForm" novalidate>
+        <div class="fields carline">
+          <label class="f yr">Year<input id="c-year" inputmode="numeric" autocomplete="off" placeholder="2017"></label>
+          <label class="f"><span>Make <span class="req" aria-hidden="true">*</span></span><input id="c-make" autocomplete="off" placeholder="Honda" required></label>
+          <label class="f"><span>Model <span class="req" aria-hidden="true">*</span></span><input id="c-model" autocomplete="off" placeholder="Civic Si" required></label>
+        </div>
+        <div class="fl">What do you want to do?
+          <div class="chips" id="goalChips"></div>
+        </div>
+        <label class="f"><span>In your own words <span class="opt">(optional)</span></span><textarea id="c-first" rows="2" placeholder="For example: sit lower with wheels that fill the arches, without ruining the ride"></textarea></label>
+        <details class="morecar" id="moreCar">
+          <summary>More about the car <span class="opt">(optional)</span></summary>
+          <div class="fields">
+            <label class="f">Generation or chassis code<input id="c-generation" autocomplete="off" placeholder="10th gen (FC1)"></label>
+            <label class="f">Trim or engine<input id="c-trim" autocomplete="off" placeholder="1.5L turbo, sedan"></label>
+            <label class="f">Transmission
+              <select id="c-transmission"><option value="">Not sure</option><option>Manual</option><option>Automatic</option><option>Dual-clutch</option><option>CVT</option></select>
+            </label>
+            <label class="f">Drivetrain
+              <select id="c-drivetrain"><option value="">Not sure</option><option>FWD</option><option>RWD</option><option>AWD</option><option>4WD</option></select>
+            </label>
+            <label class="f full">Already done to it<input id="c-mods" autocomplete="off" placeholder="Stock wheels, Eibach springs, intake"></label>
+            <label class="f full">Budget<input id="c-budget" autocomplete="off" placeholder="About $2,000"></label>
+          </div>
+        </details>
+        <button class="btn primary big" type="submit" id="carGo">Start planning</button>
+        <p class="note" id="cmCost" hidden></p>
+      </form>
+    </div>
+
+    <div id="bChat" hidden>
+      <div class="ws-head">
+        <div class="ws-nav">
+          <button class="textbtn backlink" type="button" id="bExit"><svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>All builds</button>
+          <button class="btn small" type="button" id="bNew">New build</button>
+        </div>
+        <div class="bcar" id="bCar"></div>
+        <div class="usage" id="usage" hidden>
+          <div class="meters">
+            <div class="meter" id="uScans"></div>
+            <div class="meter" id="uReplies"></div>
+          </div>
+          <button class="textbtn" type="button" id="usageInfo" aria-expanded="false" aria-controls="usageHelp">How scans and replies work</button>
+          <div class="usage-help" id="usageHelp" hidden></div>
+        </div>
+      </div>
+      <div class="ws-tabs" id="wsTabs" role="tablist" aria-label="Build">
+          <button type="button" role="tab" id="tChat" aria-selected="true" aria-controls="paneChat">Chat</button>
+          <button type="button" role="tab" id="tBuild" aria-selected="false" aria-controls="paneBuild">My build <span class="count" id="bCount"></span></button>
+        </div>
+
+      <div class="ws" id="ws" data-tab="chat">
+        <section class="ws-chat" id="paneChat" role="tabpanel" aria-labelledby="tChat">
+          <div class="chat" id="chat"></div>
+          <div class="starters" id="starters" hidden></div>
+          <form class="composer" id="composer">
+            <div class="composer-row">
+              <textarea id="say" rows="1" placeholder="Ask the build guide" aria-label="Message the build guide"></textarea>
+              <button class="btn primary" type="submit" id="sayBtn">Send</button>
+            </div>
+            <span class="meter-line" id="meter" hidden></span>
+          </form>
+        </section>
+
+        <aside class="ws-side" id="paneBuild" role="tabpanel" aria-labelledby="tBuild">
+          <section class="card buildcard" aria-labelledby="partsTitle">
+            <div class="card-head"><h3 id="partsTitle">Parts you chose</h3></div>
+            <p class="empty" id="buildEmpty">Nothing yet. Tap <b>Add to build</b> on any part the guide suggests, and it lands here.</p>
+            <ul class="blist" id="buildList"></ul>
+            <div class="btotal" id="buildTotal" hidden></div>
+            <button class="textbtn" type="button" id="ownBtn">+ Add your own part</button>
+            <form class="ownform" id="ownForm" hidden>
+              <input id="ownIn" autocomplete="off" placeholder="For example: carbon fiber hood" aria-label="Part name">
+              <button class="btn small" type="submit">Add</button><button class="textbtn" type="button" data-close>Cancel</button>
+            </form>
+          </section>
+
+          <section class="card garage" id="garage" aria-labelledby="gTitle" hidden>
+            <div class="card-head"><h3 id="gTitle">3D car</h3><span id="gCost"></span></div>
+            <div id="gOff">
+              <p class="note">See your build in 3D. Each time you add a part you can see, it makes a new version with it fitted, to turn and compare.</p>
+              <details class="gopts">
+                <summary>Add photos or paint colour <span class="opt">(optional)</span></summary>
+                <div class="gopts-in">
+                  <div class="gshots" id="gShots"></div>
+                  <label class="btn small" for="gPhotos" tabindex="0">Add photos of your car</label>
+                  <span class="note">Up to 3. With photos it looks like your exact car.</span>
+                  <input type="file" id="gPhotos" accept="image/*" multiple hidden>
+                  <label class="f">Paint colour<input id="gPaintIn" autocomplete="off" placeholder="Le Mans Blue metallic"></label>
+                </div>
+              </details>
+              <button class="btn light" type="button" id="gStart">Make my 3D car</button>
+              <p class="gerr" id="gOffErr"></p>
+            </div>
+            <div id="gOnWrap" hidden>
+              <div class="g3d" id="g3d" hidden><p class="g3d-msg" id="g3dMsg"></p><span class="g3d-tag" id="g3dTag" hidden></span>
+                <div class="g3d-tools"><button type="button" id="gTurn" aria-label="Turn the car 90 degrees">Turn</button><button type="button" id="gSpin" aria-pressed="true">Spin</button></div></div>
+              <div class="gviews" id="gViews" hidden></div>
+              <div class="gmeta">
+                <p class="glabel" id="gLabel"></p>
+                <div class="gvers" id="gVers" role="group" aria-label="Versions of your car"></div>
+              </div>
+              <div class="gstat" id="gStat" hidden></div>
+              <div class="gnote" id="gDemo" hidden></div>
+              <div class="gnote" id="gNext" hidden></div>
+              <p class="gerr" id="gMsg"></p>
+              <button class="btn light" type="button" id="gOpen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5.2 5.2l-8.6 8.6a2.1 2.1 0 0 1-3-3l8.6-8.6a4 4 0 0 1-2.2-2.2z"/><path d="M14.7 6.3 17 4a4 4 0 0 1 3 3l-2.3 2.3"/></svg>Open garage</button>
+              <label class="gauto"><input type="checkbox" id="gAuto" checked>Update the 3D car when I add or remove parts</label>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+    <div class="toast" id="toast" role="status" hidden></div>
+
+    <!-- The full garage: the 3D car big, and an assistant to try any part on it -->
+    <dialog class="gwin" id="gWin" aria-labelledby="gwTitle">
+      <div class="gw-head">
+        <div><p class="gw-kicker">Garage</p><h2 id="gwTitle"></h2></div>
+        <button class="x" id="gwClose" type="button" aria-label="Close the garage">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg>
+        </button>
+      </div>
+      <div class="gw-body">
+        <div class="gw-stage">
+          <div class="gw-view" id="gwView"><p class="gw-empty" id="gwEmpty" hidden>Your first 3D version is being made.</p></div>
+          <div class="gw-under">
+            <div class="gvers" id="gwVers" role="group" aria-label="Versions of your car"></div>
+            <p class="glabel" id="gwLabel"></p>
+            <div class="gstat" id="gwStat" hidden></div>
+          </div>
+        </div>
+        <div class="gw-panel">
+          <section class="gw-try" aria-labelledby="gwTryTitle">
+            <h3 id="gwTryTitle">Try something on your car</h3>
+            <p class="note">Name any part, even one the guide didn't suggest, or describe a look. The assistant fits it to your car and makes a demo version<span id="gwCost"></span>.</p>
+            <form class="gw-form" id="gwForm">
+              <textarea id="gwIn" rows="2" placeholder="For example: Rotiform BLQ 19x9.5 in gold" aria-label="What to try on your car"></textarea>
+              <button class="btn primary" type="submit" id="gwGo">Try it</button>
+            </form>
+            <p class="gerr" id="gwMsg"></p>
+            <div class="chips" id="gwIdeas"></div>
+          </section>
+          <section class="gw-feed" id="gwFeed" aria-live="polite"></section>
+          <section class="gw-on">
+            <h3>On this version</h3>
+            <ul class="gw-list" id="gwOn"></ul>
+          </section>
+        </div>
+      </div>
+    </dialog>
+  </main>
+
+  <footer>
+    <p>Part IDs are visual best guesses. Check fitment (bolt pattern, offset, year range) before you buy.</p>
+    <p>Your photo, and in Creative mode what you type, is sent to an AI service. Recent scans and builds are saved on this device only.</p>
+    <p id="donateLine" hidden>Build Spotter is a small independent project. <a id="donateLink" href="#" target="_blank" rel="noopener">Chip in to keep it running</a>.</p>
+    <p>&copy; <span id="yr">2026</span> Build Spotter. <a href="privacy.html">Privacy</a></p>
+  </footer>
+</div>
+
+<!-- Account -->
+<dialog class="sheet" id="acctPanel" aria-labelledby="acctTitle" tabindex="-1">
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h2 id="acctTitle">Create your free account</h2>
+      <button class="x" id="acctClose" type="button" aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg>
+      </button>
+    </div>
+    <p class="msg" id="acctMsg" role="status" hidden></p>
+
+    <div id="vSignin" hidden>
+      <form id="signinForm" novalidate>
+        <div class="seg" role="tablist" aria-label="Account">
+          <button type="button" role="tab" id="tabSignup" aria-selected="true">Create account</button>
+          <button type="button" role="tab" id="tabSignin" aria-selected="false">Sign in</button>
+        </div>
+        <p class="note" id="freeNote">5 free scans every month. No card needed.</p>
+        <label class="f">Email<input id="inEmail" type="email" autocomplete="email" inputmode="email" required></label>
+        <label class="f">Password
+          <span class="passwrap"><input id="inPass" type="password" autocomplete="new-password" minlength="8" required><button type="button" id="passToggle" aria-pressed="false">Show</button></span>
+        </label>
+        <button class="btn primary" type="submit" id="authSubmit">Create free account</button>
+        <button class="textbtn" type="button" id="forgotBtn" hidden style="align-self:flex-start">Forgot your password?</button>
+      </form>
+    </div>
+
+    <div id="vReset" hidden>
+      <form id="resetForm">
+        <label class="f">New password<input id="newPass" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button class="btn primary" type="submit">Save new password</button>
+      </form>
+    </div>
+
+    <div id="vAccount" hidden style="display:flex;flex-direction:column;gap:16px">
+      <div class="bal"><span class="big" id="balBig">0</span><span class="of"><span id="balWord">scans left</span><span id="balSplit"></span></span></div>
+      <p class="note" id="balRefill"></p>
+      <div id="buyWrap" style="display:flex;flex-direction:column;gap:12px">
+        <h3>Get more scans</h3>
+        <div class="packs" id="packs"></div>
+        <p class="note">Secure checkout by Stripe. Bought scans never expire, and a scan that fails is refunded automatically.</p>
+      </div>
+      <div class="row" style="justify-content:space-between">
+        <span class="who" id="acctEmail"></span>
+        <button class="textbtn" type="button" id="signoutBtn">Sign out</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/* Donation link: set it here, or (on Netlify) with the DONATE_URL environment variable. */
+const DONATE_URL="";
+
+const CATS=["Wheels","Tires","Suspension","Brakes","Aero & Body","Lighting","Exhaust","Engine","Interior","Other"];
+const PROVIDERS={
+  anthropic:{model:"claude-sonnet-5-5",key:"https://console.anthropic.com/settings/keys"},
+  openai:{model:"gpt-5.5",key:"https://platform.openai.com/api-keys"},
+  gemini:{model:"gemini-3.6-flash",key:"https://aistudio.google.com/apikey"}
+};
+const $=id=>document.getElementById(id);
+const state={pending:new Map(),live:new Map(),liveText:new Map(),mode:"pending",sample:null,img:null,thumb:null,current:null,override:"",editing:false,ctl:null,focus:new Set(),authMode:"signup"};
+
+/* The example on the home page: a real photo (example.jpg) and the scan it produced. */
+const EXAMPLE={subject:"car",
+  vehicle:{year:"2013–2016",make:"Scion",model:"FR-S",trim:"First generation (ZN6)",color:"Red",confidence:"medium"},
+  summary:"Widebody street build sitting low on mesh wheels, with a carbon hood and a front splitter. The same body was sold as the Toyota 86 and Subaru BRZ.",
+  parts:[
+    {category:"Wheels",name:"Black mesh wheels with a polished lip",detail:"18x9.5 est. · 5x100 · stepped lip",confidence:"medium",evidence:"Fine mesh face with a bright stepped lip on both wheels.",query:"black mesh wheels polished lip 18x9.5 5x100",alternatives:["BBS RS","Work VS-XX","ESR SR01"]},
+    {category:"Suspension",name:"Coilovers, lowered about 2 in",detail:"Almost no fender gap, slight negative camber",confidence:"medium",evidence:"The front tire sits up inside the flare with the body level.",query:"Scion FR-S coilovers",alternatives:["BC Racing BR","KW V3"]},
+    {category:"Aero & Body",name:"Bolt-on widebody fender flares",detail:"Front and rear overfenders",confidence:"medium",evidence:"A visible seam where the wider arches meet the factory fenders.",query:"FR-S widebody fender flares",alternatives:["Rocket Bunny V1","Clinched flares"]},
+    {category:"Aero & Body",name:"Carbon fiber hood",detail:"Exposed weave, unpainted",confidence:"high",evidence:"The hood is a dark weave that doesn’t match the red paint.",query:"Scion FR-S carbon fiber hood",alternatives:["Seibon OEM-style"]},
+    {category:"Aero & Body",name:"Front splitter",detail:"Flat black, extends past the bumper",confidence:"low",evidence:"A thin dark edge under the front bumper.",query:"FR-S front splitter",alternatives:[]}
+  ],
+  photo_tips:"A rear three-quarter shot would show the wing and the exhaust."};
+
+/* ---------- storage (this device only) ---------- */
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}}};
+
+/* ---------- small things ---------- */
+function setDonate(url){
+  url=String(url||"").trim();
+  if(!/^https:\/\/[^\s"'<>]+$/i.test(url))return;
+  $("donateLink").href=url;$("donateLine").hidden=false;
+}
+setDonate(DONATE_URL);
+$("yr").textContent=new Date().getFullYear();
+if(matchMedia("(pointer:coarse)").matches)document.body.classList.add("touch");
+else $("pickLabel").textContent="Upload a photo",$("pickLabel").classList.add("primary");
+// labels act as buttons for the hidden file inputs; make them work from the keyboard too
+document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches?.("label[for][tabindex]")){e.preventDefault();e.target.click()}});
+
+/* ---------- views ---------- */
+function show(view){
+  $("home").hidden=view!=="home";$("scan").hidden=view!=="scan";$("build").hidden=view!=="build";
+  $("tabScan").toggleAttribute("aria-current",view!=="build");$("tabCreative").toggleAttribute("aria-current",view==="build");
+  if(view==="build")$("tabCreative").setAttribute("aria-current","page");else $("tabScan").setAttribute("aria-current","page");
+  const h=view==="build"?"#creative":"";if(location.hash!==h)history.replaceState(null,"",location.pathname+location.search+h);
+  window.scrollTo(0,0);
+}
+$("brand").onclick=()=>{state.ctl?.abort();show("home");drawRecent()};
+
+/* ---------- helpers ---------- */
+const enc=s=>encodeURIComponent(String(s).trim().replace(/\s+/g," "));
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const carName=v=>[v.year,v.make,v.model].filter(Boolean).join(" ").replace(/–/g,"-");
+const fullName=v=>[carName(v),v.trim].filter(Boolean).join(" ");
+const CONF={high:"Confident",medium:"Likely",low:"Best guess"};
+const confKey=c=>CONF[c]?c:"low";
+const plain=s=>String(s??"").replace(/\s*·\s*/g,", ");
+const dots=c=>`<span class="conf ${confKey(c)}" aria-hidden="true"><i></i><i></i><i></i></span>`;
+function blobToDataURL(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)})}
+function dataURLToBlob(u){const [h,d]=u.split(",");const bin=atob(d);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:(h.match(/:(.*?);/)||[])[1]||"image/jpeg"})}
+async function resize(blob,max,q){
+  try{const bmp=await createImageBitmap(blob,{imageOrientation:"from-image"});
+    const s=Math.min(1,max/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");
+    c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||blob),"image/jpeg",q));
+  }catch{return blob}
+}
+
+/* ---------- links ---------- */
+// "2008 BMW 328i E90": year (or year range), make, model and chassis code, for searches that must match the exact car
+function vehicleText(v){
+  const yr=String(v.year||"").match(/(19|20)\d{2}/g);
+  const y=yr?(yr.length>1&&yr[0]!==yr[yr.length-1]?`${yr[0]}-${yr[yr.length-1]}`:yr[0]):"";
+  const gen=(String(v.generation||"")+" "+String(v.trim||"")).match(/\b([A-Z]{1,3}\d{1,3}[A-Z]?)\b/)?.[1]||"";
+  return [y,v.make,v.model,gen].filter(Boolean).join(" ");
+}
+const BY_SIZE=["Wheels","Tires"];           // bought by size; everything else is made for particular cars
+// the shop link, the smaller link for the build list, and the other links (eBay, photos, fitment)
+function partLinkSet(p,v){
+  const car=vehicleText(v),q=String(p.query||p.name).trim(),ql=q.toLowerCase();
+  // add the car to the search unless the guide already put the car in it
+  const named=[v.model,String(v.generation||"").match(/\b([A-Z]{1,3}\d{1,3}[A-Z]?)\b/)?.[1]].filter(Boolean).some(x=>ql.includes(String(x).toLowerCase().split(" ")[0]));
+  const sq=!BY_SIZE.includes(p.category)&&car&&!named?`${q} ${car}`:q;
+  const shopUrl=`https://www.google.com/search?tbm=shop&q=${enc(sq)}`;
+  const more=[["eBay",`https://www.ebay.com/sch/i.html?_nkw=${enc(sq)}&_sacat=6028`],
+    [car?"On this car":"Photos",`https://www.google.com/search?tbm=isch&q=${enc(named?q:(q+" "+car).trim())}`]];
+  if(["Wheels","Tires","Suspension"].includes(p.category))
+    more.push(["Fitment",`https://www.google.com/search?q=${enc((car+" "+q).trim()+" site:fitmentindustries.com OR site:customwheeloffset.com")}`]);
+  else more.push([car?"Check it fits":"Reviews",`https://www.google.com/search?q=${enc(car?`"${p.name}" ${car} fitment`:q+" review")}`]);
+  const a=(t,h,c)=>`<a class="${c}" href="${h}" target="_blank" rel="noopener">${t}</a>`;
+  return {shop:a("Shop",shopUrl,"xl"),shopBtn:a("Shop this part",shopUrl,"shop"),shopSmall:a("Shop",shopUrl,""),more:more.map(([t,h])=>a(t,h,"xl")).join("")};
+}
+function partLinks(p,v){const l=partLinkSet(p,v);return l.shopBtn+l.more}
+
+/* ---------- render ---------- */
+function subjectOf(r){return r.subject||(r.is_vehicle===false?"none":"car")}
+// Builds the show card and parts list. `live` adds the controls that only make sense on your own scan.
+function resultHTML(r,live){
+  const subj=subjectOf(r);
+  if(subj==="none")
+    return `<div class="plate"><div class="namewrap"><h2>No car or parts found</h2></div></div>
+      <p class="summary">${esc(r.summary||"")} Try a photo where the car or the part fills more of the frame.</p>`;
+  const v=r.vehicle||{}, hasCar=!!(v.make||v.model), parts=r.parts||[];
+  const groups=CATS.map(c=>[c,parts.filter(p=>(CATS.includes(p.category)?p.category:"Other")===c)]).filter(g=>g[1].length);
+  const title=hasCar?[v.make,v.model].filter(Boolean).join(" "):(subj==="parts"?"Loose parts":"Unknown car");
+  const matchText=state.override&&live?"Car name set by you"
+    :hasCar?`${dots(v.confidence)}${({high:"Confident match",medium:"Likely match",low:"Best guess"})[confKey(v.confidence)]}`
+    :subj==="parts"?"No car in this photo":"Couldn’t name this car";
+  const editLabel=hasCar?"Wrong car?":(subj==="parts"?"Add the car these fit":"Name this car");
+  return `<div class="plate">
+      <div class="namewrap"><div class="top-line"><span class="yr">${hasCar&&v.year?esc(v.year):(subj==="parts"?"Parts":"")}</span><span class="imprint">Build Spotter</span></div><h2>${esc(title)}</h2></div>
+      <dl class="facts">
+        ${hasCar&&v.trim?`<div class="wide"><dt>Trim</dt><dd>${esc(plain(v.trim))}</dd></div>`:""}
+        ${hasCar&&v.color?`<div><dt>Color</dt><dd>${esc(plain(v.color))}</dd></div>`:""}
+        <div><dt>Parts found</dt><dd>${parts.length}</dd></div>
+      </dl>
+    </div>
+    <div class="match"><span>${matchText}</span>${live&&!state.editing?`<button class="textbtn" id="nameEdit" type="button">${editLabel}</button>`:""}</div>
+    ${live&&state.editing?nameForm(hasCar?fullName(v):"",subj):""}
+    ${r.summary?`<p class="summary">${esc(r.summary)}</p>`:""}
+    ${hasCar?`<div class="carlinks">
+      <a class="xl" href="https://www.google.com/search?q=${enc(fullName(v)+" OEM parts")}" target="_blank" rel="noopener">Factory parts for this car</a>
+      <a class="xl" href="https://www.google.com/search?tbm=isch&q=${enc(fullName(v)+" modified")}" target="_blank" rel="noopener">Similar builds</a>
+      ${live?`<button class="xl linkbtn" type="button" id="planThis">Plan mods for this car</button>`:""}
+    </div>`:""}
+    ${groups.map(([c,ps])=>`<section class="group">
+      <div class="group-head"><h3>${esc(c)}</h3><span>${ps.length} ${ps.length===1?"part":"parts"}</span></div>
+      ${ps.map(p=>`<article class="part">
+        <h4>${esc(p.name)}</h4>
+        ${p.detail?`<p class="spec">${String(p.detail).split(/\s*·\s*/).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</p>`:""}
+        <p class="why">${dots(p.confidence)}<b>${CONF[confKey(p.confidence)]}.</b> ${esc(p.evidence||"")}</p>
+        ${p.alternatives&&p.alternatives.filter(Boolean).length?`<p class="alts">Could also be ${p.alternatives.filter(Boolean).map(a=>`<em>${esc(a)}</em>`).join(", ")}</p>`:""}
+        <div class="plinks">${partLinks(p,v)}</div></article>`).join("")}</section>`).join("")}
+    ${r.photo_tips?`<p class="tip"><b>For a better result:</b> ${esc(r.photo_tips)}</p>`:""}`;
+}
+function nameForm(name,subj){
+  const parts=subj==="parts";
+  return `<form class="nameedit" id="nameForm">
+      <label class="f" for="nameInput">${parts?"What car are these parts on, or for?":"What car is it?"}</label>
+      <input id="nameInput" value="${esc(state.override||name)}" placeholder="For example: 2019 Subaru WRX STI" autocomplete="off">
+      <div class="row"><button class="btn light" type="submit">Scan again as this car</button><button class="textbtn" type="button" id="nameCancel">Cancel</button></div>
+      <p class="note">The photo is checked again as this car, so factory parts, sizes and fitment match it.${state.accounts?" Uses 1 scan.":""}</p>
+    </form>`;
+}
+function render(){
+  const r=state.current, box=$("results");
+  box.className="result";
+  box.innerHTML=r?resultHTML(r,true):"";
+  const done=!!r;
+  $("refine").hidden=!done||subjectOf(r)==="none";
+  sync();
+  $("planThis")?.addEventListener("click",()=>{const v=state.current?.vehicle||{};
+    const yr=String(v.year||"").match(/\d{4}/g);
+    openBuild({year:yr?yr[yr.length-1]:"",make:v.make||"",model:v.model||"",trim:v.trim||"",
+      mods:(state.current.parts||[]).map(p=>p.name).filter(Boolean).slice(0,10).join(", ")})});
+  $("nameEdit")?.addEventListener("click",()=>{state.editing=true;render();const i=$("nameInput");i.focus();i.select()});
+  $("nameCancel")?.addEventListener("click",()=>{state.editing=false;render()});
+  $("nameForm")?.addEventListener("submit",e=>{e.preventDefault();
+    const n=$("nameInput").value.trim();if(!n){$("nameInput").focus();return}
+    if(!state.img){status("Add a photo first. The name is used together with the photo.",{err:true});return}
+    state.override=n;state.editing=false;render();analyze();
+  });
+}
+// keeps the photo and the show card joined, and shows the scan-again buttons once there is something to leave
+function sync(){
+  const busy=!$("scanline").hidden;
+  $("scan").classList.toggle("attached",!!state.current&&$("status").hidden);
+  $("scan").classList.toggle("done",!busy);
+}
+function renderExample(){
+  $("exampleBox").className="result attached";
+  $("exampleBox").innerHTML=`<figure class="photo"><img src="example.jpg" alt="A red widebody Scion FR-S at a car meet" width="960" height="711" loading="lazy"></figure>`+resultHTML(EXAMPLE,false);
+}
+
+/* ---------- chips ---------- */
+$("chips").innerHTML=CATS.filter(c=>c!=="Other").map(c=>`<button type="button" class="chip" aria-pressed="false" data-c="${c}">${c}</button>`).join("");
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
+  const on=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",on);on?state.focus.add(b.dataset.c):state.focus.delete(b.dataset.c)});
+
+/* ---------- photo ---------- */
+const needsScan=()=>!!state.img&&!state.current;
+async function setPhoto(file){
+  if(!file)return;
+  if(!file.type.startsWith("image/")){
+    if($("scan").hidden){show("scan");$("shot").hidden=true}
+    status("That file isn’t an image. Choose a JPG, PNG or HEIC photo.",{err:true});return}
+  state.img=await resize(file,1600,.88);state.thumb=await blobToDataURL(await resize(state.img,264,.72));
+  $("shot").hidden=false;$("preview").src=URL.createObjectURL(state.img);
+  state.current=null;state.override="";state.editing=false;state.recentIndex=null;
+  clearRefine();$("refine").open=false;
+  render();show("scan");analyze();
+}
+["cam","pick"].forEach(id=>$(id).addEventListener("change",e=>{setPhoto(e.target.files[0]);e.target.value=""}));
+let dragN=0;
+document.addEventListener("dragenter",e=>{if([...(e.dataTransfer?.types||[])].includes("Files")){dragN++;document.body.classList.add("drag")}});
+document.addEventListener("dragleave",()=>{if(--dragN<=0){dragN=0;document.body.classList.remove("drag")}});
+document.addEventListener("dragover",e=>{if([...(e.dataTransfer?.types||[])].includes("Files"))e.preventDefault()});
+document.addEventListener("drop",e=>{if(!e.dataTransfer?.files?.length)return;e.preventDefault();dragN=0;document.body.classList.remove("drag");setPhoto(e.dataTransfer.files[0])});
+document.addEventListener("paste",e=>{const f=[...(e.clipboardData?.files||[])][0];if(f)setPhoto(f)});
+
+/* ---------- status ---------- */
+// status(message, {err, busy, action:[label, fn]})
+function status(msg,o={}){
+  $("scanline").hidden=!o.busy;$("shot").classList.toggle("scanning",!!o.busy);$("results").classList.toggle("busy",!!o.busy);
+  const s=$("status");
+  if(!msg){s.hidden=true;sync();return}
+  s.hidden=false;s.className="status"+(o.err?" err":"");
+  s.innerHTML=(o.busy?'<span class="spin" aria-hidden="true"></span>':"")+`<span>${esc(msg)}</span>`
+    +(o.busy?'<button class="btn small" id="stop" type="button">Cancel</button>':"")
+    +(o.action?`<button class="btn small" id="statusAct" type="button">${esc(o.action[0])}</button>`:"");
+  if(o.busy)$("stop").onclick=()=>state.ctl?.abort();
+  if(o.action)$("statusAct").onclick=o.action[1];
+  sync();
+}
+
+/* ---------- prompt ---------- */
+/*PROMPT-START*/
+function makePrompt(o){
+  return `You are an expert at identifying cars and car parts from photos (wheels, tires, suspension, brakes, aero, lighting, exhaust, engine, interior).
+The attached image is a photo the user took. It is either:
+- a CAR (whole or partial): identify the vehicle from the photo alone, then every visible part an enthusiast might want to buy (aftermarket parts, and notable factory parts such as "Factory 18in STI BBS wheels" when that's what's fitted). Set "subject" to "car".
+- one or more PARTS on their own (a loose wheel, a coilover, an exhaust, a part on a shelf or in a box, or a close-up where the car itself can't be identified): identify each part. Set "subject" to "parts". If the photo shows what car the parts are on or for, fill "vehicle"; otherwise set "vehicle" to null.
+- neither: set "subject" to "none" and say what you see in "summary".
+${o.override?`
+IMPORTANT: The user says the car is: "${o.override}" (the car in the photo, or the car these parts are on). Treat this as correct even if the photo made you think otherwise. Fill the vehicle fields to match it (split into year, make, model, trim). Re-check every part against this exact car: decide factory vs aftermarket using this model's real factory equipment, use its correct bolt pattern, hub bore and factory wheel/tire sizes, and prefer parts made for this platform.
+`:""}
+Rules:
+- Only list parts you can actually see or that are strongly implied (ride height implies coilovers vs lowering springs). Never invent hidden parts.
+- Be specific: brand and model when the design or branding is recognizable. Read any visible text, stamps, stickers or sidewall markings.
+- Give the specifications in "detail", separated by " · ": for wheels diameter x width, offset, bolt pattern, finish, construction (forged/flow-formed/cast); for tires size, model, treadwear if readable; for suspension type and estimated drop; for brakes caliper brand and piston count; otherwise the size, material and finish. Say "est." for estimates.
+- If unsure of the brand, describe the style and give 1-3 likely candidates in "alternatives".
+- confidence is "high" (clear branding or unmistakable design), "medium" (strong visual match), or "low" (educated guess).
+- "query" is the best shopping search string for that exact part (brand model size finish), without the car name.
+- category must be one of: ${CATS.join(", ")}.
+${o.notes?`\nThe user adds: ${o.notes}\n`:""}${o.focus.length?`\nThe user mainly wants: ${o.focus.join(", ")}. Cover those in the most depth, but still list other visible parts.\n`:""}
+Reply with only JSON in this shape:
+{"subject":"car|parts|none","vehicle":{"year":"2018-2021","make":"","model":"","trim":"","color":"","confidence":"high|medium|low"},"summary":"one sentence describing the build, or what the parts are","parts":[{"category":"Wheels","name":"","detail":"18x9.5 · +38 est. · 5x114.3 · bronze · forged","confidence":"medium","evidence":"what in the photo shows this","query":"","alternatives":[""]}],"photo_tips":"one sentence on what extra angle would improve identification, or empty"}`;
+}
+/*PROMPT-END*/
+function promptInput(){return {override:state.override,notes:$("f-notes").value.trim(),focus:[...state.focus]}}
+function buildPrompt(){return makePrompt(promptInput())}
+
+/* ---------- AI backends ---------- */
+function repairJSON(t){let o="",s=false;
+  for(let i=0;i<t.length;i++){const c=t[i];if(!s){o+=c;if(c==='"')s=true;continue}
+    if(c==="\\"){o+=c+(t[i+1]??"");i++;continue}if(c==="\n"){o+="\\n";continue}if(c==="\r"||c==="\t"){o+=" ";continue}
+    if(c==='"'){const r=t.slice(i+1).match(/^\s*(.)/);if(!r||/[,}\]:]/.test(r[1])){o+=c;s=false}else o+='\\"';continue}o+=c}
+  return o}
+function parseJSON(t){
+  t=String(t||"").trim();
+  try{return JSON.parse(t)}catch{}
+  {const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a>=0&&b>a){try{return JSON.parse(repairJSON(t.slice(a,b+1)))}catch{}}}
+  const f=t.match(/```(?:json)?\s*([\s\S]*?)```/);if(f){try{return JSON.parse(f[1])}catch{}}
+  const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1))}catch{}}
+  throw {code:"invalid_json"};
+}
+const ERR={not_granted:"Claude access wasn’t allowed for this page, so it can’t read photos.",sampling_disabled:"Claude isn’t available on this account.",
+  cut:"The connection dropped before the guide finished. Try again.",
+  rate_limited:"Too many requests right now. Wait a minute and try again.",image_rejected:"That photo couldn’t be read. Try a JPG or PNG under 20 MB.",
+  images_unavailable:"This view can’t send photos to Claude.",refused:"This photo couldn’t be scanned. Try a different one.",
+  invalid_json:"The answer came back garbled. Try again.",session_expired:"Sign in to Claude again, then retry.",
+  no_key:"Add an API key to scan photos.",need_code:"Enter the access code to scan photos.",
+  bad_code:"That access code didn’t work. Check it and try again.",server_key:"The app’s server isn’t set up yet: its API key is missing or invalid.",
+  too_large:"That photo is too large to send. Try a different one.",bad_key:"That API key was rejected. Check it in AI settings.",
+  network:"Couldn’t reach the AI service. Check your connection and try again.",
+  signin:"Sign in to scan this photo. A free account gets free scans every month.",no_credits:"You’re out of scans. Get more to keep going, or wait for next month’s free ones.",
+  accounts_down:"Accounts are having a problem right now. Try again in a minute.",payments_down:"Checkout couldn’t start. Try again in a minute."};
+
+async function askClaude(prompt,signal,onText){
+  return await state.sample.json(prompt,{images:state.img,signal,onText});
+}
+const API_PATH="/api/analyze";
+async function askServer(signal){
+  const image=(await blobToDataURL(await resize(state.img,1280,.85))).split(",")[1];
+  let res;
+  try{res=await fetch(API_PATH,{method:"POST",signal,headers:{"content-type":"application/json","x-access-code":store.get("spotter-code",""),...authHeader()},
+    body:JSON.stringify({image,...promptInput()})})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  let j={};try{j=await res.json()}catch{}
+  if(j.credits)setCredits(j.credits);
+  if(!res.ok||j.error){
+    if(j.code==="signin")openAcct("signin",ERR.signin);
+    if(j.code==="no_credits")openAcct("account",ERR.no_credits,true);
+    if(j.code==="bad_code"){state.needsCode=true;$("accessForm").hidden=false;try{localStorage.removeItem("spotter-code")}catch{}}
+    throw{code:j.code||"api",message:j.message||"The scan didn’t go through. Try again in a moment."};
+  }
+  return j.result;
+}
+async function askAPI(prompt,signal){
+  const s=getSettings();if(!s.key)throw{code:"no_key"};
+  const data=(await blobToDataURL(state.img)).split(",")[1];
+  let url,headers={"content-type":"application/json"},body,pick;
+  if(s.provider==="anthropic"){
+    url="https://api.anthropic.com/v1/messages";
+    Object.assign(headers,{"x-api-key":s.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"});
+    body={model:s.model,max_tokens:4096,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data}},{type:"text",text:prompt}]}]};
+    pick=j=>(j.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
+  }else if(s.provider==="openai"){
+    url="https://api.openai.com/v1/chat/completions";headers.authorization="Bearer "+s.key;
+    body={model:s.model,response_format:{type:"json_object"},messages:[{role:"user",content:[{type:"text",text:prompt},{type:"image_url",image_url:{url:"data:image/jpeg;base64,"+data}}]}]};
+    pick=j=>j.choices?.[0]?.message?.content;
+  }else{
+    url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model)}:generateContent`;headers["x-goog-api-key"]=s.key;
+    body={contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}};
+    pick=j=>(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("");
+  }
+  let res;
+  try{res=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  let j={};try{j=await res.json()}catch{}
+  if(!res.ok){
+    if(res.status===401||res.status===403)throw{code:"bad_key"};
+    if(res.status===429)throw{code:"rate_limited"};
+    const m=j.error?.message||j.error?.type||`HTTP ${res.status}`;
+    throw{code:"api",message:`The AI service said: ${m}`};
+  }
+  return parseJSON(pick(j));
+}
+
+/* ---------- analyze ---------- */
+async function analyze(){
+  if(!state.img)return;
+  if(state.mode==="pending"){status("Getting ready…",{busy:true});return}        // boot() scans as soon as it knows how
+  if(state.mode==="none"){status("Photo scanning isn’t available in this view. Open the page in the Claude app or on claude.ai.",{err:true});return}
+  if(state.mode==="api"&&!getSettings().key){show("home");$("settings").hidden=false;$("s-key").focus();setMsg("Add an API key to start. You only do this once.");return}
+  if(state.mode==="server"&&state.accounts){
+    if(!state.session){const m=state.authMode==="signup"?"Your photo is ready. Create a free account to scan it.":"Your photo is ready. Sign in to scan it.";status(m,{action:[state.authMode==="signup"?"Create account":"Sign in",()=>openAcct()]});openAcct("signin",m);return}
+    if(state.credits&&state.credits.total<=0){status(ERR.no_credits,{err:true,action:["Get scans",()=>openAcct()]});openAcct("account",ERR.no_credits,true);return}
+  }
+  if(state.mode==="server"&&state.needsCode&&!store.get("spotter-code","")){show("home");$("accessForm").hidden=false;$("a-code").focus();return}
+  state.ctl?.abort();const ctl=state.ctl=new AbortController();
+  $("refineBtn").disabled=true;
+  status(state.override?`Checking the parts again as a ${state.override}…`:"Identifying the car and its parts…",{busy:true});
+  try{
+    const r=state.mode==="claude"
+      ?await askClaude(buildPrompt(),ctl.signal,()=>status("Writing up the parts list…",{busy:true}))
+      :state.mode==="server"?await askServer(ctl.signal)
+      :await askAPI(buildPrompt(),ctl.signal);
+    if(!r||typeof r!=="object")throw{code:"invalid_json"};
+    if(ctl!==state.ctl)return;
+    state.current=r;state.editing=false;status("");render();$("results").classList.add("fresh");saveRecent();
+    window.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"});
+  }catch(e){
+    if(ctl!==state.ctl)return;
+    const again=["Try again",analyze];
+    if(e?.code==="cancelled")status("Scan cancelled.",{action:again});
+    else if(e?.code==="signin")status(ERR.signin,{action:["Sign in",()=>openAcct()]});
+    else if(e?.code==="no_credits")status(ERR.no_credits,{err:true,action:["Get scans",()=>openAcct()]});
+    else if(e?.code==="bad_code"||e?.code==="need_code"){show("home");$("accessMsg").textContent=ERR[e.code]}
+    else status(e?.message&&e.code==="api"?e.message:(ERR[e?.code]||"Something went wrong. Try again."),{err:true,action:again});
+  }finally{if(ctl===state.ctl)$("refineBtn").disabled=false}
+}
+$("form").addEventListener("submit",e=>{e.preventDefault();if(state.img)analyze()});
+function clearRefine(){$("f-notes").value="";state.focus.clear();document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"))}
+$("clearBtn").onclick=clearRefine;
+
+/* ---------- recent (this device only) ---------- */
+async function saveRecent(){
+  const r=state.current;if(!r||subjectOf(r)==="none"||!state.img)return;
+  const img=await blobToDataURL(await resize(state.img,1024,.78));
+  let list=store.get("spotter-recent2",[]);
+  if(state.recentIndex!=null&&list[state.recentIndex]?.img===state.recentImg)list.splice(state.recentIndex,1);
+  list=[{t:state.thumb,img,r,o:state.override,at:Date.now()},...list].slice(0,6);
+  while(list.length&&!store.set("spotter-recent2",list))list.pop();
+  state.recentIndex=0;state.recentImg=img;drawRecent();
+}
+const recentName=x=>{const v=x.r.vehicle||{};return [v.make,v.model].filter(Boolean).join(" ")||(x.r.parts||[])[0]?.name||"Scan"};
+function drawRecent(){const list=store.get("spotter-recent2",[]);$("recentWrap").hidden=!list.length;
+  $("recent").innerHTML=list.map((x,i)=>`<button type="button" data-i="${i}" aria-label="Open ${esc(recentName(x))}">${x.t?`<img src="${x.t}" alt="">`:""}<span>${esc(recentName(x))}</span></button>`).join("")}
+$("recent").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const i=+b.dataset.i;const x=store.get("spotter-recent2",[])[i];if(!x)return;
+  state.ctl?.abort();
+  state.current=x.r;state.override=x.o||"";state.editing=false;state.thumb=x.t;
+  state.img=x.img?dataURLToBlob(x.img):null;state.recentIndex=i;state.recentImg=x.img;
+  $("shot").hidden=!x.img;if(x.img)$("preview").src=x.img;
+  clearRefine();$("refine").open=false;status("");render();show("scan")});
+
+/* ---------- settings (when you run your own copy without the server) ---------- */
+function setMsg(t,ok){const m=$("settingsMsg");m.hidden=!t;m.textContent=t||"";m.style.color=ok?"var(--text)":""}
+function getSettings(){const s=store.get("spotter-ai",{});const p=PROVIDERS[s.provider]?s.provider:"anthropic";return{provider:p,model:s.model||PROVIDERS[p].model,key:s.key||""}}
+function fillSettings(){const s=getSettings();$("s-provider").value=s.provider;$("s-model").value=s.model;$("s-key").value=s.key;$("keyLink").href=PROVIDERS[s.provider].key}
+$("s-provider").addEventListener("change",e=>{const p=e.target.value;$("s-model").value=PROVIDERS[p].model;$("keyLink").href=PROVIDERS[p].key;
+  const saved=store.get("spotter-ai",{});$("s-key").value=saved.provider===p?saved.key||"":""});
+$("settings").addEventListener("submit",e=>{e.preventDefault();
+  const p=$("s-provider").value;const ok=store.set("spotter-ai",{provider:p,model:$("s-model").value.trim()||PROVIDERS[p].model,key:$("s-key").value.trim()});
+  setMsg(ok?"Saved on this device.":"Couldn’t save. Your browser may be blocking storage.",ok);
+  if(ok&&getSettings().key){setTimeout(()=>{$("settings").hidden=true},700);if(needsScan()){show("scan");analyze()}}});
+$("accessForm").addEventListener("submit",e=>{e.preventDefault();const c=$("a-code").value.trim();if(!c){$("a-code").focus();return}
+  if(store.set("spotter-code",c)){$("accessForm").hidden=true;if(needsScan()){show("scan");analyze()}}
+  else $("accessMsg").textContent="Couldn’t save. Your browser may be blocking storage."});
+$("settingsBtn").onclick=()=>{show("home");$("settings").hidden=!$("settings").hidden;if(!$("settings").hidden)$("s-key").focus()};
+
+/* ---------- accounts + credits (Supabase sign-in, Stripe checkout) ---------- */
+const SUPABASE_JS="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+const authHeader=()=>state.session?{authorization:"Bearer "+state.session.access_token}:{};
+const money=c=>{try{return new Intl.NumberFormat(undefined,{style:"currency",currency:(state.payments?.currency||"usd").toUpperCase()}).format(c/100)}catch{return "$"+(c/100).toFixed(2)}};
+const plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
+function acctMsg(msg,err){const m=$("acctMsg");if(!msg){m.hidden=true;return}m.hidden=false;m.className="msg"+(err?" err":"");m.textContent=msg}
+async function startAccounts(cfg){
+  state.accounts=cfg;
+  $("freeNote").textContent=dealOn()?`${state.promo.credits} free scans when you sign up, plus ${cfg.freePerMonth} free every month. No card needed.`:`${cfg.freePerMonth} free scans every month. No card needed.`;
+  $("refineCost").hidden=false;
+  if(store.get("spotter-known",false))state.authMode="signin";
+  drawAcct();
+  try{await loadScript(SUPABASE_JS)}catch{$("freeLine").hidden=false;$("freeLine").textContent="Couldn’t load sign-in. Check your connection and reload the page.";return}
+  state.sb=window.supabase.createClient(cfg.url,cfg.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  state.sb.auth.onAuthStateChange((ev,session)=>{
+    state.session=session;
+    if(ev==="PASSWORD_RECOVERY"){openAcct("reset");return}
+    if(ev==="SIGNED_OUT"){state.credits=null}
+    if(session)store.set("spotter-known",true);
+    drawAcct();
+    if(session&&(ev==="SIGNED_IN"||ev==="INITIAL_SESSION"||ev==="TOKEN_REFRESHED"))refreshCredits();
+  });
+  const {data}=await state.sb.auth.getSession();state.session=data.session;state.authReady=true;drawAcct();
+  await refreshCredits();
+  await handleReturn();
+}
+async function api(path,opt={}){
+  const res=await fetch(path,{...opt,headers:{"content-type":"application/json",...authHeader(),...(opt.headers||{})}});
+  let j={};try{j=await res.json()}catch{}
+  if(!res.ok)throw{code:j.code||"api",message:j.message,status:res.status};
+  return j;
+}
+async function refreshCredits(){
+  if(!state.session){state.credits=null;drawAcct();return}
+  try{const j=await api("/api/credits");setCredits(j.credits);
+    if(j.bonus>0){const m=`Welcome. ${j.bonus} Black Friday scans are in your balance.`;if($("acctPanel").open)acctMsg(m);else{$("freeLine").hidden=false;$("freeLine").textContent=m}}}catch{}
+}
+function setCredits(c){if(!c)return;state.credits=c;drawAcct();if(state.build)drawUsage()}
+function nextMonth(){const d=new Date();return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1)).toLocaleDateString(undefined,{month:"long",day:"numeric",timeZone:"UTC"})}
+// Creative mode needs an account when accounts are on: until then it is blurred behind a sign-in card
+function drawLock(){
+  const lock=state.mode==="server"&&!!state.accounts&&!!state.authReady&&!state.session;   // only once we know they're signed out
+  $("build").classList.toggle("locked",lock);$("cmLock").hidden=!lock;
+  for(const id of ["bSetup","bChat"])$(id).inert=lock;
+}
+$("cmLockUp").onclick=()=>{setAuthMode("signup");openAcct("signin","Make a free account to use Creative mode. It comes with free scans every month.")};
+$("cmLockIn").onclick=()=>{setAuthMode("signin");openAcct("signin")};
+function drawAcct(){
+  drawLock();
+  if(!state.accounts)return;
+  const s=state.session,c=state.credits,free=state.accounts.freePerMonth;
+  $("acctBtn").hidden=!!s;$("creditPill").hidden=!s;
+  const line=$("freeLine");line.hidden=false;
+  if(!s){line.innerHTML=(dealOn()?`Free to try: ${state.promo.credits} scans when you make a free account, then ${free} a month. No card needed.`:`Free to try: ${free} scans a month with a free account. No card needed.`)+` <button class="textbtn" type="button" data-acct>Sign in</button>`}
+  else if(c){
+    $("pillText").textContent=plural(c.total,"scan")+" left";$("creditPill").classList.toggle("out",c.total<=0);
+    line.innerHTML=c.total>0?`You have ${plural(c.total,"scan")} left.`:`You’re out of scans. <button class="textbtn" type="button" data-acct>Get more</button>`;
+  }else{$("pillText").textContent="Account";line.hidden=true}
+  if(s){
+    $("acctEmail").textContent=s.user?.email||"Signed in";
+    $("balBig").textContent=c?c.total:"–";
+    $("balWord").textContent=c&&c.total===1?"scan left":"scans left";
+    $("balSplit").textContent=c?`${c.free} free this month, ${c.paid} that never expire`:"";
+    $("balRefill").textContent=`Your free scans go back up to ${free} on ${nextMonth()}.`;
+  }
+  $("buyWrap").hidden=!state.payments;
+  if(!dealOn()&&state.accounts)$("freeNote").textContent=`${free} free scans every month. No card needed.`;
+  drawDeal();
+  if(state.payments&&!$("packs").childElementCount){
+    $("packs").innerHTML=state.payments.packs.map(p=>`<button class="pack" type="button" data-pack="${esc(p.id)}"><span class="n">${p.credits} scans${p.tag?`<span class="tag">${esc(p.tag)}</span>`:""}</span><span class="p">${money(p.cents)}</span><span class="each">${money(Math.round(p.cents/p.credits*10)/10)} a scan</span></button>`).join("");
+  }
+  if($("acctPanel").open&&state.view!=="reset")showView(s?"account":"signin");
+}
+$("freeLine").addEventListener("click",e=>{if(e.target.closest("[data-acct]")){if(!state.session)setAuthMode("signin");openAcct()}});
+function setAuthMode(m){
+  state.authMode=m;const up=m==="signup";
+  $("tabSignup").setAttribute("aria-selected",up);$("tabSignin").setAttribute("aria-selected",!up);
+  $("authSubmit").textContent=up?"Create free account":"Sign in";
+  $("inPass").autocomplete=up?"new-password":"current-password";
+  $("freeNote").hidden=!up;$("forgotBtn").hidden=up;
+  if(state.view==="signin")$("acctTitle").textContent=up?"Create your free account":"Sign in";
+}
+$("tabSignup").onclick=()=>{setAuthMode("signup");acctMsg("")};
+$("tabSignin").onclick=()=>{setAuthMode("signin");acctMsg("")};
+$("passToggle").onclick=()=>{const on=$("inPass").type==="password";$("inPass").type=on?"text":"password";$("passToggle").textContent=on?"Hide":"Show";$("passToggle").setAttribute("aria-pressed",on)};
+function showView(v){state.view=v;
+  $("vSignin").hidden=v!=="signin";$("vReset").hidden=v!=="reset";$("vAccount").hidden=v!=="account";
+  $("acctTitle").textContent=v==="reset"?"Choose a new password":v==="account"?"Your scans":"";
+  if(v==="signin")setAuthMode(state.authMode);
+}
+function openAcct(v,msg,err){
+  if(!state.accounts)return;
+  if(v!=="reset")v=state.session?"account":"signin";
+  showView(v);acctMsg(msg||"",!!err);
+  const d=$("acctPanel");if(!d.open)d.showModal();
+  d.scrollTop=0;
+  if(v==="signin"&&!matchMedia("(pointer:coarse)").matches)$("inEmail").focus();else d.focus();
+}
+function closeAcct(){if($("acctPanel").open)$("acctPanel").close();state.view=null}
+$("acctBtn").onclick=()=>openAcct();
+$("creditPill").onclick=()=>openAcct();
+$("acctClose").onclick=closeAcct;
+$("acctPanel").addEventListener("click",e=>{if(e.target===$("acctPanel"))closeAcct()});       // tap outside the sheet
+$("acctPanel").addEventListener("close",()=>{state.view=null});
+function creds(){const email=$("inEmail").value.trim(),pass=$("inPass").value;
+  if(!/^\S+@\S+\.\S+$/.test(email)){acctMsg("Enter your email address.",true);$("inEmail").focus();return null}
+  if(pass.length<8){acctMsg("Use a password with at least 8 characters.",true);$("inPass").focus();return null}
+  return{email,password:pass}}
+async function busyBtn(btn,fn){btn.disabled=true;try{await fn()}finally{btn.disabled=false}}
+function signedIn(){acctMsg("");if(needsScan()){closeAcct();analyze()}
+  else if(!$("build").hidden&&state.build&&$("say").value.trim()){closeAcct();const t=$("say").value.trim();$("say").value="";sendGuide(t)}
+  else showView("account")}
+$("signinForm").addEventListener("submit",e=>{e.preventDefault();const c=creds();if(!c||!state.sb)return;
+  busyBtn($("authSubmit"),async()=>{
+    if(state.authMode==="signup"){
+      acctMsg("Creating your account…");
+      const {data,error}=await state.sb.auth.signUp({...c,options:{emailRedirectTo:location.origin+location.pathname}});
+      if(error){acctMsg(/already/i.test(error.message)?"That email already has an account. Choose Sign in instead.":error.message,true);return}
+      if(!data.session){acctMsg(`Almost done. We sent a link to ${c.email}. Open it to confirm your email, then come back and sign in.`);setAuthMode("signin");return}
+      signedIn();
+    }else{
+      acctMsg("Signing in…");
+      const {error}=await state.sb.auth.signInWithPassword(c);
+      if(error){acctMsg(/confirm/i.test(error.message)?"Confirm your email first: open the link we sent you, then sign in.":error.message.replace(/^Invalid login credentials$/,"That email and password don’t match. Check them, or create an account."),true);return}
+      signedIn();
+    }})});
+$("forgotBtn").onclick=async()=>{const email=$("inEmail").value.trim();
+  if(!/^\S+@\S+\.\S+$/.test(email)){acctMsg("Type your email above first, then choose Forgot your password.",true);$("inEmail").focus();return}
+  const {error}=await state.sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  acctMsg(error?error.message:`If ${email} has an account, a reset link is on its way.`,!!error)};
+$("resetForm").addEventListener("submit",async e=>{e.preventDefault();const p=$("newPass").value;
+  if(p.length<8){acctMsg("Use at least 8 characters.",true);return}
+  const {error}=await state.sb.auth.updateUser({password:p});
+  if(error){acctMsg(error.message,true);return}
+  state.view=null;showView("account");acctMsg("Password saved. You’re signed in.")});
+$("signoutBtn").onclick=async()=>{await state.sb.auth.signOut();state.session=null;state.credits=null;acctMsg("");state.authMode="signin";showView("signin");drawAcct()};
+$("packs").addEventListener("click",async e=>{const b=e.target.closest(".pack");if(!b)return;
+  if(!state.session){openAcct("signin","Sign in first, then choose a pack.");return}
+  document.querySelectorAll(".pack").forEach(x=>x.disabled=true);acctMsg("Opening secure checkout…");
+  try{const j=await api("/api/checkout",{method:"POST",body:JSON.stringify({pack:b.dataset.pack})});location.href=j.url}
+  catch(err){acctMsg(err.message||ERR[err.code]||ERR.payments_down,true);document.querySelectorAll(".pack").forEach(x=>x.disabled=false)}});
+// back from Stripe: add the credits straight away (the webhook also does it; it never counts twice)
+async function handleReturn(){
+  const q=new URLSearchParams(location.search);const paid=q.get("paid"),canceled=q.get("canceled");
+  if(!paid&&!canceled)return;
+  history.replaceState(null,"",location.pathname+location.hash);
+  if(canceled){openAcct("account","Checkout cancelled. You weren’t charged.");return}
+  if(!state.session){openAcct("signin","Payment received. Sign in to see your scans.");return}
+  openAcct("account","Payment received. Adding your scans…");
+  for(let i=0;i<5;i++){
+    try{const j=await api("/api/credits",{method:"POST",body:JSON.stringify({session_id:paid})});setCredits(j.credits);
+      acctMsg(j.added?`Payment received. ${j.added} scans added. Thanks for supporting Build Spotter.`:"Payment received. Your scans are in your balance.");return}catch{}
+    await new Promise(r=>setTimeout(r,1500));
+  }
+  acctMsg("Payment received. Your scans can take a minute to show up. Reload the page if they don’t.");
+}
+
+/* ---------- Black Friday sign-up deal (set on the server: SIGNUP_BONUS, SIGNUP_BONUS_ENDS) ---------- */
+let dealTimer=null;
+const dealOn=()=>!!state.promo&&Date.parse(state.promo.endsAt)>Date.now();
+function drawDeal(){
+  const on=dealOn()&&!!state.accounts;$("deal").hidden=!on;
+  if(!on){clearInterval(dealTimer);dealTimer=null;return}
+  const n=state.promo.credits,s=state.session;
+  $("dealText").innerHTML=s?`Tell a friend: new accounts get <b>${n} free scans</b> until the deal ends.`:`Make a free account and get <b>${n} free scans</b>.`;
+  $("dealBtn").hidden=!!s;$("dealBtn").textContent=`Claim ${n} scans`;
+  tickDeal();
+  if(!dealTimer)dealTimer=setInterval(tickDeal,1000);
+}
+function tickDeal(){
+  const left=Date.parse(state.promo.endsAt)-Date.now();
+  if(left<=0){state.promo=null;drawDeal();drawAcct();return}
+  const d=Math.floor(left/864e5),h=Math.floor(left/36e5)%24,m=Math.floor(left/6e4)%60,sec=Math.floor(left/1e3)%60,z=x=>String(x).padStart(2,"0");
+  $("clock").innerHTML=`<small>Ends in</small>${d?`<span>${d}</span><i>d</i>`:""}<span>${z(h)}</span><i>h</i><span>${z(m)}</span><i>m</i><span>${z(sec)}</span><i>s</i>`;
+  $("clock").setAttribute("aria-label",`Ends in ${d} days, ${h} hours, ${m} minutes`);
+}
+$("dealBtn").onclick=()=>{setAuthMode("signup");openAcct()};
+
+/* ---------- Creative mode: the AI build guide ---------- */
+/*GUIDE-PROMPT-START*/
+const GUIDE_CATS = ["Wheels","Tires","Suspension","Brakes","Aero & Body","Lighting","Exhaust","Engine","Interior","Other"];
+const LABELS = { year: "Year", make: "Make", model: "Model", generation: "Generation / chassis", trim: "Trim / engine",
+  transmission: "Transmission", drivetrain: "Drivetrain", mods: "Already done", goals: "Goals", budget: "Budget",
+  garage: "3D garage (a 3D model of their car; each version shows the parts added)" };
+// The shape of every guide reply. Anthropic is made to fill it as a tool call, so the answer is always valid JSON
+// (a free-text answer breaks on things like 18" written inside a string). "reply" comes first so it can be shown as it streams.
+const S = { type: "string" }, LIST = { type: "array", items: S };
+const GUIDE_SCHEMA = { type: "object", required: ["reply"], properties: {
+  reply: S,
+  questions: { type: "array", items: { type: "object", required: ["q"], properties: { q: S, options: LIST } } },
+  parts: { type: "array", items: { type: "object", required: ["category", "name", "query"], properties: {
+    category: { type: "string", enum: GUIDE_CATS }, name: S, detail: S, fits: S, fitment: S, why: S, price: S, query: S, alternatives: LIST } } },
+  steps: LIST, warnings: LIST, demo: S,
+  car: { type: "object", properties: { year: S, make: S, model: S, generation: S, trim: S, transmission: S, drivetrain: S, mods: S, budget: S } },
+} };
+function carLines(car) {
+  return Object.keys(LABELS).filter(k => String(car?.[k] || "").trim()).map(k => `- ${LABELS[k]}: ${String(car[k]).trim()}`).join("\n") || "- (nothing yet)";
+}
+function guideSystem(car) {
+  return `You are Build Spotter's build guide: an expert car modifier and parts specialist. You help the user plan modifications for their own car and recommend specific parts that fit it.
+
+The user's car (as they entered it):
+${carLines(car)}
+
+How to work:
+- Talk like a knowledgeable friend at a parts counter: direct, specific, short. No filler, no hype.
+- Before recommending parts, make sure you know what matters for this request. If something that would change your answer is missing or unclear (exact generation, trim or engine, transmission, drivetrain, budget, how the car is used, current mods, the look or ride height they want, or their region for emissions and legality), ask in "questions": at most 3 at a time, each with 2 to 5 short tappable options when that makes sense. While you are waiting on answers that decide the parts, leave "parts" empty; say in "reply" what you need and why.
+- Recommend real parts that exist for this exact car: brand and model, plus the fitment that matters. Wheels: diameter x width, offset range, bolt pattern, center bore and hub rings, tire size, and whether fender rolling or camber is needed. Suspension: type, drop, and what else it needs (alignment, camber arms, end links). Engine and exhaust: whether a tune is needed and emissions legality. Brakes: minimum wheel size.
+- Exact fit matters more than anything else. Only recommend a part if you know a version of it is made for this exact car: same generation and year range, body style (sedan, coupe, wagon, hatch), engine, and drivetrain (AWD/xDrive vs RWD/FWD). Watch for the usual splits: pre- vs post-facelift (LCI), mid-generation changes, sport or performance packages with different brakes or suspension, and different front and rear sizes. If the year or generation isn't known yet and it changes which version fits, ask before recommending those parts.
+- For each part, say in "fits" exactly which cars that version is made for (years, generation or chassis code, body, engine, drivetrain), and in "fitment" what the user must check or choose when ordering (which variant, which side, what else is needed).
+- When fitment depends on something you can't confirm (a mid-year change, a sub-model), say what to check instead of guessing. Never invent part numbers.
+- Keep each reply focused: at most 6 parts, one or two sentences per field. If the plan needs more, cover the first stage and offer to do the rest next.
+- Give an estimated price range in US dollars when you can, for example "est. $1,100-1,400 set".
+- When the plan has more than one part, put the order to do things in "steps". Put real risks (warranty, legality, needs a tune, rubbing, ride quality) in "warnings".
+- "query" is the best shopping search for the exact version that fits this car. Wheels and tires are bought by size: brand, model, diameter x width, offset, bolt pattern (for example "Enkei RPF1 18x9.5 +38 5x120"). Everything else is made for specific cars: brand and product line plus the chassis code, year range and engine or drivetrain (for example "Bilstein B12 Pro-Kit E90 328i 2006-2011 RWD"), so the results show the right version.
+- category must be one of: ${GUIDE_CATS.join(", ")}.
+- If the user tells you a fact about their car (for example that it's a 6-speed manual), put it in "car" using the keys year, make, model, generation, trim, transmission, drivetrain, mods, budget.
+- The app has a 3D garage that shows the user's car with parts fitted. If the user asks to see a part on their car (in 3D, "show me", "what would it look like"), put that part's exact name in "demo" and make sure it is in "parts" in this reply with its size and finish, so the app can make a 3D demo of it. Set "demo" only when they ask to see something. If the 3D garage line above says what's on their 3D car, you can refer to it.
+- Stay on modifying, maintaining and fitting parts to cars. If asked about something else, steer back in one sentence.
+
+Reply with only JSON in this shape (leave out keys you don't need, or give them empty arrays):
+{"reply":"your message to the user in plain text: short paragraphs, or lines starting with '- '","questions":[{"q":"","options":[""]}],"parts":[{"category":"Wheels","name":"","detail":"18x9.5 · +38 · 5x114.3 · flow-formed","fits":"which years, generation, body, engine and drivetrain this version is made for","fitment":"what has to be true for this to fit this car","why":"why it suits what they asked for","price":"est. $","query":"","alternatives":[""]}],"steps":[""],"warnings":[""],"demo":"the exact name of a part to show on their 3D car, only when they ask to see one","car":{}}`;
+}
+/*GUIDE-PROMPT-END*/
+const GOALS=["Look better","Sit lower","More power","Sharper handling","Track days","Better daily","Louder","Off-road"];
+const CAR_FIELDS=["year","make","model","generation","trim","transmission","drivetrain","mods","budget"];
+$("goalChips").innerHTML=GOALS.map(g=>`<button type="button" class="chip" aria-pressed="false" data-g="${esc(g)}">${esc(g)}</button>`).join("");
+$("goalChips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b)b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")});
+
+/* ---------- builds, saved on this device ---------- */
+// b = {id, car, msgs, chat, left, at, parts: [chosen parts], garage: {paint, auto, versions, sel} | undefined}
+const builds=()=>store.get("spotter-builds",[]);
+function saveBuild(b=state.build){if(!b)return;b.at=Date.now();state.live.set(b.id,b);
+  let list=builds().filter(x=>x.id!==b.id);list=[b,...list].slice(0,8);
+  while(list.length&&!store.set("spotter-builds",list)){list.pop();if(list.length&&list[0].msgs.length>40)list[0].msgs=list[0].msgs.slice(-40)}}
+const carTitle=c=>[c.make,c.model].filter(Boolean).join(" ")||"Your car";
+// older builds kept their 3D parts in garage.mods: they become the build's parts list
+function upgrade(b){if(!b.parts){b.parts=(b.garage?.mods||b.picks||[]).map(m=>({...m}))}if(b.garage)delete b.garage.mods;delete b.picks;return b}
+const ago=t=>{const d=Date.now()-t;return d<6e4?"just now":d<36e5?`${Math.round(d/6e4)} min ago`:d<864e5?`${Math.round(d/36e5)} h ago`:new Date(t).toLocaleDateString(undefined,{month:"short",day:"numeric"})};
+function drawSaved(){const list=builds();$("savedWrap").hidden=!list.length;$("newHead").hidden=!list.length;
+  $("savedList").innerHTML=list.map(x=>{const b=state.live.get(x.id)||x,n=(b.parts||b.garage?.mods||[]).length;
+    return `<button type="button" data-id="${b.id}"><span class="sv-name"><b>${esc([b.car.year,carTitle(b.car)].filter(Boolean).join(" "))}</b>${b.garage?`<i class="badge">3D</i>`:""}</span>
+      <span class="sv-sub">${state.pending.has(b.id)?"The guide is replying…":`${n?`${n} ${n===1?"part":"parts"} · `:""}${ago(b.at)}`}</span></button>`}).join("")}
+$("savedList").addEventListener("click",e=>{const el=e.target.closest("button");if(!el)return;
+  const x=state.live.get(+el.dataset.id)||builds().find(y=>String(y.id)===el.dataset.id);if(!x)return;
+  state.live.set(x.id,upgrade(x));enterBuild(x)});
+function enterBuild(b){state.build=b;state.wsTab="chat";show("build");$("bSetup").hidden=true;$("bChat").hidden=false;drawBuild();
+  requestAnimationFrame(()=>window.scrollTo(0,b.msgs.length?document.body.scrollHeight:0))}
+function openBuild(prefill){
+  state.build=null;show("build");$("bSetup").hidden=false;$("bChat").hidden=true;
+  $("carForm").dataset.edit="";$("carGo").textContent="Start planning";$("setupTitle").textContent="Plan a build";
+  for(const k of CAR_FIELDS)$("c-"+k).value=prefill?.[k]||"";
+  $("moreCar").open=!!(prefill&&["generation","trim","mods"].some(k=>prefill[k]));
+  $("c-first").value="";document.querySelectorAll("#goalChips .chip").forEach(c=>c.setAttribute("aria-pressed","false"));
+  const n=state.guideReplies;$("cmCost").hidden=!(state.mode==="server"&&state.accounts&&n);
+  $("cmCost").textContent=n?`Your first message uses 1 scan and gives you ${n} guide replies for this build.`:"";
+  drawSaved();
+  if(prefill?.make&&!matchMedia("(pointer:coarse)").matches)$("c-first").focus();
+}
+$("cmStart").onclick=()=>openBuild();
+// the Creative mode tab: back to the build you were on, or the start
+$("tabCreative").onclick=()=>{if(!$("build").hidden)return;if(state.build)enterBuild(state.build);else openBuild()};
+$("tabScan").onclick=()=>{if($("build").hidden&&!$("scan").hidden)return;show(state.current||state.img?"scan":"home")};
+if(location.hash==="#creative")openBuild();                         // a link straight into Creative mode
+$("carForm").addEventListener("submit",e=>{e.preventDefault();
+  const car={};for(const k of CAR_FIELDS){const v=$("c-"+k).value.trim();if(v)car[k]=v}
+  if(!car.make||!car.model){const el=$(!car.make?"c-make":"c-model");el.focus();el.setCustomValidity("Add this so the guide knows your car");el.reportValidity();setTimeout(()=>el.setCustomValidity(""),2000);return}
+  const goals=[...document.querySelectorAll("#goalChips .chip[aria-pressed=true]")].map(c=>c.dataset.g);
+  if(goals.length)car.goals=goals.join(", ");
+  if($("carForm").dataset.edit==="1"&&state.build){                  // editing the car keeps the conversation
+    if(!goals.length&&state.build.car.goals)car.goals=state.build.car.goals;
+    state.build.car=car;saveBuild();enterBuild(state.build);
+    const t=$("c-first").value.trim();if(t)sendGuide(t);return}
+  const b={id:Date.now(),car,msgs:[],chat:null,left:null,at:Date.now(),parts:[]};   // its own guide session: replies never carry over from another build
+  state.live.set(b.id,b);enterBuild(b);
+  const first=$("c-first").value.trim()||(goals.length?`I want to: ${goals.join(", ").toLowerCase()}. Where should I start?`:"");
+  if(first)sendGuide(first);else $("say").focus();
+});
+function editCar(){const keep=state.build;openBuild(keep.car);state.build=keep;$("moreCar").open=true;
+  $("setupTitle").textContent="Edit your car";$("savedWrap").hidden=true;$("newHead").hidden=true;
+  $("carGo").textContent="Save and go back to the chat";$("carForm").dataset.edit="1";
+  document.querySelectorAll("#goalChips .chip").forEach(c=>c.setAttribute("aria-pressed",String((keep.car.goals||"").split(", ").includes(c.dataset.g))))}
+
+/* ---------- the workspace: header, scans and replies, tabs ---------- */
+function carCard(c){
+  const facts=[c.generation,c.trim,c.transmission,c.drivetrain].filter(Boolean).map(x=>esc(x)).join(" · ");
+  return `<div class="plate wsplate"><div class="namewrap"><div class="top-line"><span class="yr">${esc(c.year||"Your build")}</span><button class="textbtn" type="button" id="carEdit">Edit car</button></div>
+    <h2>${esc(carTitle(c))}</h2>${facts?`<p class="pfacts">${facts}</p>`:""}</div></div>`;
+}
+// Scans are the account's balance; guide replies belong to this build. Shown side by side, never mixed.
+function drawUsage(){
+  const b=state.build,box=$("usage");if(!b)return;
+  const on=state.mode==="server"&&!!state.accounts&&!!state.session;box.hidden=!on;if(!on)return;
+  const c=state.credits,max=state.guideReplies||15,left=b.left;
+  const rv=left==null?max:left,rsub=left==null?"Your first message here uses 1 scan":left>0?"left in this build":"Your next message uses 1 scan for "+max+" more";
+  $("uScans").innerHTML=`<span class="m-k">Scans</span><span class="m-v">${c?c.total:"–"}</span><span class="m-s">in your account</span>`;
+  $("uReplies").innerHTML=`<span class="m-k">Guide replies</span><span class="m-v">${rv}<small>/${max}</small></span><span class="m-s">${rsub}</span>`;
+  $("uReplies").classList.toggle("low",left!=null&&left<=3);
+  const g=state.garage;
+  $("usageHelp").innerHTML=`<p><b>Scans</b> are your account's balance. Scanning a photo uses 1, starting a guide session in a build uses 1${g&&g.start?`, turning on the 3D car uses ${g.start}, and each new 3D version uses ${g.update}`:""}. You get ${state.accounts.freePerMonth} free every month and can buy more.</p>
+    <p><b>Guide replies</b> belong to this build only. One scan gives you ${max} replies here; when they run out, your next message starts a new session for 1 scan. They never move between builds.</p>`;
+}
+$("usageInfo").onclick=()=>{const h=$("usageHelp"),open=h.hidden;h.hidden=!open;$("usageInfo").setAttribute("aria-expanded",open)};
+function setTab(t){state.wsTab=t;$("ws").dataset.tab=t;
+  for(const [id,k] of [["tChat","chat"],["tBuild","build"]]){$(id).setAttribute("aria-selected",t===k);$(id).tabIndex=t===k?0:-1}
+  if(t==="build")drawGarage()}
+$("tChat").onclick=()=>setTab("chat");$("tBuild").onclick=()=>{setTab("build");window.scrollTo({top:$("wsTabs").offsetTop-8})};
+$("wsTabs").addEventListener("keydown",e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){const t=state.wsTab==="chat"?"build":"chat";setTab(t);$(t==="chat"?"tChat":"tBuild").focus()}});
+let toastT=null;
+function toast(html,action){const t=$("toast");t.innerHTML=`<span>${html}</span>`+(action?`<button type="button" class="textbtn" id="toastAct">${action[0]}</button>`:"");
+  t.hidden=false;t.classList.remove("out");if(action)$("toastAct").onclick=()=>{t.hidden=true;action[1]()};
+  clearTimeout(toastT);toastT=setTimeout(()=>{t.classList.add("out");setTimeout(()=>t.hidden=true,250)},3200)}
+
+/* ---------- the guide's messages ---------- */
+// light formatting for the guide's text: paragraphs, "- " lists, **bold**
+function sayHTML(t){
+  const blocks=String(t||"").replace(/\r/g,"").split(/\n{2,}/);
+  return blocks.map(b=>{const lines=b.split("\n").filter(l=>l.trim());if(!lines.length)return"";
+    const fmt=x=>esc(x).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+    if(lines.every(l=>/^\s*[-•*]\s+/.test(l)))return`<ul>${lines.map(l=>`<li>${fmt(l.replace(/^\s*[-•*]\s+/,""))}</li>`).join("")}</ul>`;
+    return lines.map(l=>/^\s*[-•*]\s+/.test(l)?`<ul><li>${fmt(l.replace(/^\s*[-•*]\s+/,""))}</li></ul>`:`<p>${fmt(l)}</p>`).join("")}).join("");
+}
+const inBuild=(b,name)=>(b.parts||[]).some(p=>p.name===name);
+const addLabel=on=>on?`<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>In your build`:"Add to build";
+// one part the guide suggests: what it is, one clear action, and everything else folded away
+function guidePartHTML(p,v,key){
+  const b=state.build,on=inBuild(b,p.name),g3=garageOn()&&b.garage&&G_SEEN.includes(p.category);
+  const links=partLinkSet(p,v);
+  return `<article class="gpart">
+    <div class="gp-top"><span class="gp-cat">${esc(p.category||"Part")}</span>${p.price?`<span class="gp-price">${esc(p.price)}</span>`:""}</div>
+    <h4>${esc(p.name)}</h4>
+    ${p.detail?`<p class="gp-spec">${String(p.detail).split(/\s*·\s*/).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</p>`:""}
+    ${p.why?`<p class="gp-why">${esc(p.why)}</p>`:""}
+    ${p.fits?`<p class="gp-fits"><b>Made for</b> ${esc(p.fits)}</p>`:""}
+    <div class="gp-acts">
+      <button type="button" class="addb" data-key="${key}" aria-pressed="${on}">${addLabel(on)}</button>
+      ${links.shop}
+      ${g3?`<button type="button" class="textbtn gdemo" data-key="${key}">Preview in 3D</button>`:""}
+    </div>
+    ${p.fitment||(p.alternatives||[]).filter(Boolean).length||links.more?`<details class="gp-more"><summary>Fitment and more links</summary>
+      ${p.fitment?`<p><b>Fitment:</b> ${esc(p.fitment)}</p>`:""}
+      ${(p.alternatives||[]).filter(Boolean).length?`<p>Also worth a look: ${p.alternatives.filter(Boolean).map(a=>`<em>${esc(a)}</em>`).join(", ")}</p>`:""}
+      <p class="gp-links">${links.more}</p></details>`:""}
+  </article>`;
+}
+function aiHTML(d,i,last){
+  const v=state.build.car;
+  const parts=(Array.isArray(d.parts)?d.parts:[]).map((p,k)=>[p,k]).filter(([p])=>p&&p.name)
+    .sort((a,b)=>CATS.indexOf(CATS.includes(a[0].category)?a[0].category:"Other")-CATS.indexOf(CATS.includes(b[0].category)?b[0].category:"Other"));
+  const qs=(Array.isArray(d.questions)?d.questions:[]).filter(q=>q&&q.q);
+  const steps=(Array.isArray(d.steps)?d.steps:[]).filter(Boolean), warns=(Array.isArray(d.warnings)?d.warnings:[]).filter(Boolean);
+  return `<div class="ai"><span class="ai-who">Build guide</span>
+    ${d.reply?`<div class="say">${sayHTML(d.reply)}</div>`:""}
+    ${qs.length?`<div class="ask${last?"":" answered"}" data-i="${i}">${qs.map((q,k)=>`<div class="ask-q"><p>${esc(q.q)}</p>
+      ${last&&Array.isArray(q.options)&&q.options.filter(Boolean).length?`<div class="chips">${q.options.filter(Boolean).slice(0,6).map(o=>`<button type="button" class="chip" data-q="${k}" data-a="${esc(o)}">${esc(o)}</button>`).join("")}</div>`:""}</div>`).join("")}
+      ${last?`<p class="note">${qs.length>1?"Tap an answer for each, or type everything below.":"Tap an answer, or type your own below."}</p>`:""}</div>`:""}
+    ${parts.length?`<div class="gparts">${parts.map(([p,k])=>guidePartHTML(p,v,`${i}.${k}`)).join("")}</div>`:""}
+    ${steps.length?`<details class="gfold" ${last?"open":""}><summary>Do it in this order</summary><ol class="steps">${steps.map(x=>`<li>${esc(x)}</li>`).join("")}</ol></details>`:""}
+    ${warns.length?`<div class="warn"><p class="warn-h">Before you buy</p>${warns.map(x=>`<p>${esc(x)}</p>`).join("")}</div>`:""}
+    ${demoAsk(d,i)}
+  </div>`;
+}
+const partAt=(b,key)=>{const [i,k]=String(key).split(".").map(Number);return b.msgs[i]?.d?.parts?.[k]||null};
+const STARTERS=["Make it sit lower without ruining the ride","Best first mods on a budget","Wheels and tires that fit flush","Set it up for track days"];
+const thinkingHTML=b=>{const t=state.liveText.get(b.id);
+  return (t?`<div class="ai"><span class="ai-who">Build guide</span><div class="say" id="gLive">${sayHTML(t)}</div></div>`:"")
+    +`<div class="thinking" role="status"><span class="spin" aria-hidden="true"></span><span>${t?"Writing…":`Working out what fits your ${esc(carTitle(b.car))}…`}</span><button class="btn small" type="button" id="gStop">Stop</button></div>`};
+function drawBuild(extra){
+  const b=state.build;if(!b)return;upgrade(b);
+  if(!extra&&state.pending.has(b.id))extra=thinkingHTML(b);
+  $("sayBtn").disabled=state.pending.has(b.id);
+  $("bCar").innerHTML=carCard(b.car);$("carEdit").onclick=editCar;
+  $("say").placeholder="Ask the build guide";
+  const lastA=b.msgs.map(m=>m.r).lastIndexOf("a");
+  $("chat").innerHTML=b.msgs.map((m,i)=>m.r==="u"?`<div class="bubble">${esc(m.t)}</div>`:aiHTML(m.d||{},i,i===lastA&&i===b.msgs.length-1)).join("")+(extra||"");
+  $("starters").hidden=b.msgs.length>0||!!extra;
+  $("starters").innerHTML=`<p>Not sure where to start? Try one:</p><div class="chips">${STARTERS.map(x=>`<button type="button" class="chip" data-s="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
+  if($("gStop"))$("gStop").onclick=()=>state.pending.get(b.id)?.abort();
+  const m=$("meter"),left=b.left;m.hidden=!(state.mode==="server"&&left!=null&&left<=3);
+  if(!m.hidden)m.textContent=left>0?`${left} ${left===1?"reply":"replies"} left in this build`:"Your next message starts a new session (1 scan)";
+  setTab(state.wsTab||"chat");drawUsage();drawSide();
+}
+$("starters").addEventListener("click",e=>{const c=e.target.closest(".chip");if(c)sendGuide(c.dataset.s)});
+
+/* ---------- my build: the parts the user chose ---------- */
+const ONE_OF=["Wheels","Tires","Suspension","Paint"];        // one set at a time: a new one replaces the old
+function addPart(b,p,silent){
+  const part={category:p.category||"Other",name:p.name,detail:p.detail||"",price:p.price||"",query:p.query||"",fits:p.fits||"",fitment:p.fitment||"",custom:!!p.custom};
+  const gone=ONE_OF.includes(part.category)?b.parts.filter(x=>x.category===part.category&&x.name!==part.name):[];
+  b.parts=b.parts.filter(x=>!gone.includes(x)&&x.name!==part.name);b.parts.push(part);partsChanged(b);
+  b._fresh=part.name;
+  if(!silent&&!matchMedia("(min-width:980px)").matches)toast(gone.length?`Swapped <b>${esc(short(gone[0].name))}</b> for <b>${esc(short(part.name))}</b>`:`Added <b>${esc(short(part.name))}</b> to your build`,
+    state.wsTab==="chat"&&!matchMedia("(min-width:980px)").matches?["View",()=>setTab("build")]:null);
+}
+function removePart(b,name){b.parts=b.parts.filter(x=>x.name!==name);partsChanged(b)}
+function partsChanged(b){saveBuild(b);
+  document.querySelectorAll("#chat .addb").forEach(x=>{const p=partAt(b,x.dataset.key);const on=!!p&&inBuild(b,p.name);x.setAttribute("aria-pressed",on);x.innerHTML=addLabel(on)});
+  drawSide();if(b.garage)autoUpdate(b)}
+$("chat").addEventListener("click",e=>{const b=state.build;if(!b)return;
+  const ab=e.target.closest(".addb");if(ab){const p=partAt(b,ab.dataset.key);if(!p)return;inBuild(b,p.name)?removePart(b,p.name):addPart(b,p);return}
+  if(e.target.closest("[data-gon]")){setTab("build");$("garage").scrollIntoView({behavior:"smooth",block:"start"});return}
+  const dm=e.target.closest(".gdemo");if(dm&&b.garage){const p=dm.dataset.key?partAt(b,dm.dataset.key):{category:dm.dataset.cat,name:dm.dataset.pick,detail:dm.dataset.detail};if(p)demoPart(b,p)}});
+// prices like "est. $1,100-1,400 set" add up to a rough total
+function priceRange(s){const n=[...String(s||"").matchAll(/\$\s?([\d,]+(?:\.\d+)?)\s*(k)?(?:\s*[-–to]+\s*\$?\s?([\d,]+(?:\.\d+)?)\s*(k)?)?/gi)][0];if(!n)return null;
+  const v=(x,k)=>x?parseFloat(x.replace(/,/g,""))*(k?1000:1):null;const lo=v(n[1],n[2]),hi=v(n[3],n[4]||n[2])??lo;return [lo,Math.max(lo,hi)]}
+const money0=x=>"$"+Math.round(x).toLocaleString("en-US");
+function drawSide(){
+  const b=state.build;if(!b)return;
+  const parts=b.parts||[],g=b.garage,base=g?(lastDone(g)?.mods||[]):[],making=g?(working(g)?.mods||null):null;
+  $("bCount").textContent=parts.length?String(parts.length):"";
+  let lo=0,hi=0,priced=0;for(const p of parts){const r=priceRange(p.price);if(r){lo+=r[0];hi+=r[1];priced++}}
+  $("buildTotal").innerHTML=priced?`<span>Estimated total</span><b>${money0(lo)}${hi>lo?"–"+money0(hi).slice(1):""}</b>${priced<parts.length?`<small>${parts.length-priced} without a price</small>`:""}`:"";
+  $("buildTotal").hidden=!priced;
+  $("buildEmpty").hidden=!!parts.length;
+  $("buildList").innerHTML=parts.map(p=>{const v3=g&&(G_SEEN.includes(p.category)||p.category==="Paint")?(base.some(x=>x.name===p.name)?`<span class="bi-3d on">On the 3D car</span>`:making?.some(x=>x.name===p.name)?`<span class="bi-3d">Being added to the 3D car</span>`:`<span class="bi-3d">Goes on the next 3D version</span>`):"";
+    return `<li class="bi${b._fresh===p.name?" fresh":""}"><div class="bi-main"><span class="bi-cat">${esc(p.category)}</span><b>${esc(p.name)}</b>${p.detail?`<span class="bi-d">${esc(p.detail)}</span>`:""}${v3}</div>
+      <div class="bi-side">${p.price?`<span class="bi-price">${esc(p.price.replace(/^est\.?\s*/i,""))}</span>`:""}<span class="bi-acts">${p.custom?"":partLinkSet(p,b.car).shopSmall}<button type="button" class="bi-x" data-rm="${esc(p.name)}" aria-label="Remove ${esc(p.name)}">Remove</button></span></div></li>`}).join("");
+  b._fresh=null;drawGarage();
+}
+$("buildList").addEventListener("click",e=>{const x=e.target.closest("[data-rm]");const b=state.build;if(x&&b)removePart(b,x.dataset.rm)});
+$("ownBtn").onclick=()=>{$("ownForm").hidden=false;$("ownBtn").hidden=true;$("ownIn").focus()};
+$("ownForm").addEventListener("submit",e=>{e.preventDefault();const b=state.build,t=$("ownIn").value.trim();if(!b||!t)return;
+  $("ownIn").value="";$("ownForm").hidden=true;$("ownBtn").hidden=false;addPart(b,{category:guessCat(t),name:t.slice(0,120),custom:true},true)});
+$("ownForm").querySelector("[data-close]").onclick=()=>{$("ownForm").hidden=true;$("ownBtn").hidden=false};
+
+/* ---------- chat input ---------- */
+// tapping answers: one question sends straight away; several collect until each has one
+$("chat").addEventListener("click",e=>{const c=e.target.closest(".ask .chip");if(!c)return;const box=c.closest(".ask");
+  box.querySelectorAll(`.chip[data-q="${c.dataset.q}"]`).forEach(x=>x.setAttribute("aria-pressed",x===c?"true":"false"));
+  const qs=[...box.querySelectorAll(".ask-q")];
+  const picked=qs.map(q=>{const on=q.querySelector('.chip[aria-pressed="true"]');return on?[q.querySelector("p").textContent,on.dataset.a]:null});
+  const withOpts=qs.map(q=>!!q.querySelector(".chip"));
+  if(picked.every((p,k)=>p||!withOpts[k])){
+    const txt=picked.filter(Boolean).length===1?picked.find(Boolean)[1]:picked.filter(Boolean).map(([q,a])=>`${q} ${a}`).join("\n");
+    const typed=$("say").value.trim();$("say").value="";sendGuide(typed?txt+"\n"+typed:txt);
+  }});
+$("say").addEventListener("input",()=>{const t=$("say");t.style.height="auto";t.style.height=Math.min(160,t.scrollHeight)+"px"});
+$("say").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!matchMedia("(pointer:coarse)").matches){e.preventDefault();$("composer").requestSubmit()}});
+$("composer").addEventListener("submit",e=>{e.preventDefault();const t=$("say").value.trim();if(!t){$("say").focus();return}
+  $("say").value="";$("say").style.height="";sendGuide(t)});
+const wire=b=>{const out=b.msgs.slice(-24).map(m=>m.r==="u"?{role:"user",content:m.t}:{role:"assistant",content:JSON.stringify(m.d||{})});
+  while(out.length&&out[0].role!=="user")out.shift();return out};
+async function askGuideServer(b,signal,onP){
+  let res;
+  try{res=await fetch("/api/guide",{method:"POST",signal,headers:{"content-type":"application/json","x-access-code":store.get("spotter-code",""),...authHeader()},
+    body:JSON.stringify({car:carForGuide(b),messages:wire(b),chat:b.chat})})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  const fail=j=>{if(j.credits)setCredits(j.credits);
+    if(j.code==="signin")openAcct("signin","Sign in to use Creative mode. A free account comes with free scans every month.");
+    if(j.code==="no_credits")openAcct("account",ERR.no_credits,true);
+    return{code:j.code||"api",message:j.message}};
+  if(!res.ok){let j={};try{j=await res.json()}catch{}throw fail(j)}
+  // the reply streams in as lines of JSON: {p: text so far}..., then the finished answer
+  const rd=res.body.getReader(),dec=new TextDecoder();let buf="",fin=null;
+  const take=l=>{l=l.trim();if(!l)return;let o;try{o=JSON.parse(l)}catch{return}if(o.p!=null)onP?.(String(o.p));else fin=o};
+  try{for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let k;
+    while((k=buf.indexOf("\n"))>=0){take(buf.slice(0,k));buf=buf.slice(k+1)}}}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"cut"}}
+  take(buf);
+  if(!fin)throw{code:"cut"};
+  if(fin.error)throw fail(fin);
+  if(fin.credits)setCredits(fin.credits);
+  b.chat=fin.chat||null;b.left=fin.left;return fin.result;
+}
+async function askGuideAPI(b,signal){
+  const s=getSettings();if(!s.key)throw{code:"no_key"};
+  const sys=guideSystem(carForGuide(b)),msgs=wire(b);
+  let url,headers={"content-type":"application/json"},body,pick;
+  if(s.provider==="anthropic"){url="https://api.anthropic.com/v1/messages";
+    Object.assign(headers,{"x-api-key":s.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"});
+    body={model:s.model,max_tokens:8192,system:sys,messages:msgs,tools:[{name:"guide_reply",description:"Send your reply to the user. Every reply goes through this tool.",input_schema:GUIDE_SCHEMA}],tool_choice:{type:"auto"}};
+    body.system+="\n\nAlways answer by calling the guide_reply tool exactly once, with your whole reply as its input. Don't write anything outside it.";
+    pick=j=>(j.content||[]).find(c=>c.type==="tool_use")?.input||(j.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("")}
+  else if(s.provider==="openai"){url="https://api.openai.com/v1/chat/completions";headers.authorization="Bearer "+s.key;
+    body={model:s.model,response_format:{type:"json_object"},messages:[{role:"system",content:sys},...msgs]};pick=j=>j.choices?.[0]?.message?.content}
+  else{url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model)}:generateContent`;headers["x-goog-api-key"]=s.key;
+    body={systemInstruction:{parts:[{text:sys}]},contents:msgs.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content}]})),generationConfig:{responseMimeType:"application/json"}};
+    pick=j=>(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("")}
+  let res;try{res=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal})}
+  catch(e){if(e.name==="AbortError")throw{code:"cancelled"};throw{code:"network"}}
+  let j={};try{j=await res.json()}catch{}
+  if(!res.ok){if(res.status===401||res.status===403)throw{code:"bad_key"};if(res.status===429)throw{code:"rate_limited"};
+    throw{code:"api",message:`The AI service said: ${j.error?.message||`HTTP ${res.status}`}`}}
+  const out=pick(j);return out&&typeof out==="object"?out:parseJSON(out);
+}
+async function askGuideClaude(b,signal){
+  const msgs=wire(b);
+  return await state.sample.json([{role:"user",content:guideSystem(carForGuide(b))+"\n\nThe conversation so far follows. Reply to the user's last message."},{role:"assistant",content:"{\"reply\":\"Understood.\"}"},...msgs],{signal});
+}
+async function sendGuide(text){
+  const b=state.build;if(!b)return;
+  if(state.mode==="pending"){setTimeout(()=>sendGuide(text),400);return}
+  if(state.mode==="none"){drawBuild(`<div class="chat-err">Creative mode isn’t available in this view. Open the page in the Claude app or on claude.ai.</div>`);return}
+  if(state.mode==="api"&&!getSettings().key){show("home");$("settings").hidden=false;$("s-key").focus();setMsg("Add an API key to use Creative mode. You only do this once.");return}
+  if(state.mode==="server"&&state.accounts&&!state.session){$("say").value=text;openAcct("signin","Create a free account to use Creative mode. It comes with free scans every month.");return}
+  if(state.pending.has(b.id))return;                 // one question at a time per build
+  b.msgs.push({r:"u",t:text});saveBuild(b);
+  await runGuide(b);
+}
+async function runGuide(b=state.build){
+  if(!b)return;
+  state.pending.get(b.id)?.abort();
+  const ctl=new AbortController();state.pending.set(b.id,ctl);state.liveText.delete(b.id);
+  const here=()=>state.build===b&&!$("bChat").hidden;
+  if(here()){$("sayBtn").disabled=true;drawBuild();window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"})}
+  try{
+    const onP=t=>{if(state.pending.get(b.id)!==ctl)return;const had=state.liveText.has(b.id);state.liveText.set(b.id,t);
+      if(!here())return;if(had&&$("gLive"))$("gLive").innerHTML=sayHTML(t);else drawBuild()};
+    const d=state.mode==="server"?await askGuideServer(b,ctl.signal,onP):state.mode==="claude"?await askGuideClaude(b,ctl.signal):await askGuideAPI(b,ctl.signal);
+    if(!d||typeof d!=="object")throw{code:"invalid_json"};
+    if(state.pending.get(b.id)!==ctl)return;
+    state.pending.delete(b.id);state.liveText.delete(b.id);
+    if(d.car&&typeof d.car==="object")for(const k of CAR_FIELDS){const v=d.car[k];if(typeof v==="string"&&v.trim()&&!b.car[k])b.car[k]=v.trim().slice(0,120)}
+    b.msgs.push({r:"a",d});saveBuild(b);
+    if(here()){drawBuild();const all=document.querySelectorAll("#chat .ai");all[all.length-1]?.scrollIntoView({behavior:"smooth",block:"start"})}
+    else if(!$("bSetup").hidden)drawSaved();
+  }catch(e){
+    if(state.pending.get(b.id)!==ctl)return;
+    state.pending.delete(b.id);state.liveText.delete(b.id);
+    if(!$("bSetup").hidden)drawSaved();
+    if(!here())return;
+    const msg=e?.code==="cancelled"?"Stopped.":e?.code==="guide_setup"?"Creative mode isn’t set up on the server yet: run the latest database script in Supabase."
+      :e?.code==="no_credits"?ERR.no_credits:(e?.message&&(e.code==="api"||e.code==="timeout")?e.message:(ERR[e?.code]||"The guide didn’t answer. Try again."));
+    drawBuild(`<div class="chat-err"><span>${esc(msg)}</span><button class="btn small" type="button" id="gRetry">Try again</button></div>`);
+    $("gRetry").onclick=()=>runGuide(b);
+  }finally{if(!state.pending.has(b.id)&&state.build===b)$("sayBtn").disabled=false}
+}
+// leave the chat: it is already saved; the next build starts its own guide session
+$("bExit").onclick=()=>{if(state.build)saveBuild(state.build);openBuild();window.scrollTo(0,0)};
+$("bNew").onclick=()=>{if(state.build)saveBuild(state.build);openBuild();window.scrollTo(0,0);$("c-make").focus()};
+
+/* ---------- Creative mode: 3D garage (made with Meshy on the server) ---------- */
+// Once turned on for a build: b.garage = {paint, auto, versions: [...], sel}. What goes on the 3D car is the build's
+// own parts list (the parts you can see). Each version: {id, job, n, label, mods (parts on the car in it), status:
+// working|done|failed, step, progress, views, url, message, turn, demo, kept, part}. A new version is drawn from the
+// last finished one, so the car keeps its paint, body and earlier parts.
+const G_SEEN=["Wheels","Tires","Suspension","Aero & Body","Lighting","Exhaust"];   // parts that change how the car looks
+const garageOn=()=>state.mode==="server"&&!!state.garage;
+const G=()=>state.build?.garage||null;
+const lastDone=g=>[...(g?.versions||[])].reverse().find(v=>v.status==="done"&&(!v.demo||v.kept))||null;
+const working=g=>(g?.versions||[]).find(v=>v.status==="working")||null;
+const seen=b=>(b.parts||[]).filter(p=>G_SEEN.includes(p.category)||p.category==="Paint").map(p=>({category:p.category,name:p.name,detail:p.detail||""}));
+// what changes between the last finished version and the build's parts now
+function pending(b,against){const base=(against||lastDone(b.garage))?.mods||[],now=seen(b);
+  return{added:now.filter(m=>!base.some(x=>x.name===m.name)),removed:base.filter(m=>!now.some(x=>x.name===m.name))}}
+function guessCat(t){t=t.toLowerCase();
+  return /wheel|rim/.test(t)?"Wheels":/tire|tyre/.test(t)?"Tires":/coilover|spring|lower|drop|air ?ride|bag|suspension|lift/.test(t)?"Suspension"
+    :/paint|wrap|colou?r|livery/.test(t)?"Paint":/light|lamp|led/.test(t)?"Lighting":/exhaust|muffler|tip/.test(t)?"Exhaust"
+    :/intake|turbo|tune|engine|header|downpipe|cold air/.test(t)?"Engine":/seat|wheel cover|interior|shift/.test(t)?"Interior":"Aero & Body"}
+const short=s=>String(s).replace(/\s*\(.*?\)/g,"").split(/\s+/).slice(0,4).join(" ");
+
+// shared memory: the build chat, written out for the garage (the guide's AI reads it before Meshy draws anything)
+function memo(b){
+  const out=[];
+  for(const m of b.msgs.slice(-16)){
+    if(m.r==="u"){out.push("User: "+m.t.slice(0,600));continue}
+    const d=m.d||{},parts=(d.parts||[]).filter(p=>p&&p.name).slice(0,6);
+    out.push("Guide: "+String(d.reply||"").slice(0,500)+(parts.length?"\nRecommended: "+parts.map(p=>`${p.name}${p.detail?` (${p.detail})`:""}${p.fits?` [made for ${p.fits}]`:""}`).join("; "):""));
+  }
+  if(b.parts?.length)out.push("Parts the user chose for the build: "+b.parts.map(p=>p.name+(p.detail?` (${p.detail})`:"")).join("; "));
+  return out.join("\n").slice(-7000);
+}
+// and the other way: the guide knows the user's chosen parts and what's on the 3D car
+function garageLine(b){const g=b.garage;if(!g)return"";const done=lastDone(g);
+  return `On the 3D car: ${(done?.mods||[]).map(m=>m.name).join(", ")||"stock"}. ${done?`Latest version V${done.n}`:"First version being made"}${g.paint?`, paint ${g.paint}`:""}.`}
+const carForGuide=b=>{const c={...b.car};
+  if(b.parts?.length)c.mods=[c.mods,"Chosen in this build: "+b.parts.map(p=>p.name).join(", ")].filter(Boolean).join(". ").slice(0,800);
+  if(garageOn()&&b.garage)c.garage=garageLine(b);return c};
+const findPartKey=(b,name)=>{const n=String(name).toLowerCase();
+  for(let i=b.msgs.length-1;i>=0;i--){const ps=b.msgs[i].d?.parts||[];for(let k=0;k<ps.length;k++){const p=ps[k];if(p?.name&&(p.name.toLowerCase()===n||p.name.toLowerCase().includes(n)||n.includes(p.name.toLowerCase())))return `${i}.${k}`}}return null};
+function demoAsk(d){
+  if(!d.demo||!garageOn()||!state.build)return"";
+  const b=state.build,key=findPartKey(b,d.demo),p=key?partAt(b,key):{name:d.demo},c=state.garage;
+  return `<div class="gask"><span>See <b>${esc(p.name)}</b> on your car in 3D.</span>${b.garage
+    ?`<button class="btn primary small gdemo" type="button" ${key?`data-key="${key}"`:`data-pick="${esc(p.name)}" data-cat="${esc(guessCat(p.name))}"`}>Make a 3D demo${c.update?` · ${c.update} scans`:""}</button>`
+    :`<button class="btn small" type="button" data-gon>Turn on the 3D car first</button>`}</div>`;
+}
+
+// a new version on its own, a few seconds after the last change, so several parts added together become one version
+let autoTimer=null;
+function autoUpdate(b){clearTimeout(autoTimer);const g=b.garage;
+  if(!g?.auto||working(g)||!lastDone(g))return;const p=pending(b);if(!p.added.length&&!p.removed.length)return;
+  autoTimer=setTimeout(()=>{if(state.build===b&&!working(g))makeVersion(b)},6000)}
+
+function drawGarage(){
+  const b=state.build,box=$("garage");box.hidden=!garageOn()||!b;if(box.hidden)return;
+  const g=b.garage,c=state.garage;
+  $("gCost").textContent=g?"":c.start?`${c.start} scans to start`:"";
+  $("gOff").hidden=!!g;$("gOnWrap").hidden=!g;
+  if(!g){drawShots();$("gStart").textContent=c.start?`Make my 3D car · ${c.start} scans`:"Make my 3D car";return}
+  const vs=g.versions;
+  $("gVers").hidden=vs.length<2;
+  $("gVers").innerHTML=vs.map(v=>`<button type="button" class="vchip" data-v="${v.id}" aria-pressed="${v.id===g.sel}" title="${esc(v.label)}">V${v.n}${v.demo&&!v.kept?" demo":""}${v.status==="working"?` <i>${v.progress||0}%</i>`:v.status==="failed"?" <i>failed</i>":""}</button>`).join("");
+  const sel=vs.find(v=>v.id===g.sel)||vs[vs.length-1];if(sel)g.sel=sel.id;
+  $("gLabel").textContent=sel?`V${sel.n} · ${sel.label}`:"";
+  const st=$("gStat");
+  if(sel?.status==="working"){st.hidden=false;
+    const what=sel.step==="model"?"Building the 3D model":sel.step==="brief"?"Reading your build chat":"Drawing your car";
+    st.innerHTML=`<span>${what}… ${sel.queued?`waiting in line (${sel.queued} ahead)`:`${sel.progress||0}%`}</span><div class="gbar"><i style="width:${Math.max(3,sel.progress||0)}%"></i></div><span class="note">Takes 3 to 5 minutes. Keep chatting; it carries on.</span>`}
+  else if(sel?.status==="failed"){st.hidden=false;st.innerHTML=`<span class="gerr">This version couldn't be made: ${esc(sel.message||"Meshy had a problem.")}${sel.refunded?" Your scans were given back.":""}</span>`}
+  else st.hidden=true;
+  // the 3D model when there is one; while a version is being built, the views Meshy drew for it
+  const showV=sel?.status==="done"?sel:(sel?.status==="working"&&!sel.views?.length?lastDone(g):null);
+  $("g3d").hidden=!showV;if(showV)showModel(showV);
+  $("g3dTag").hidden=!(showV&&showV!==sel);if(showV&&showV!==sel)$("g3dTag").textContent=`Showing V${showV.n} while V${sel.n} is made`;
+  $("tBuild").classList.toggle("busy",!!working(g));
+  const views=sel?.status==="working"&&sel.views?.length?sel.views:null;
+  $("gViews").hidden=!views;if(views)$("gViews").innerHTML=views.slice(0,3).map(u=>`<img src="${esc(u)}" alt="Drawing of version ${sel.n}">`).join("");
+  // keep or discard a finished demo
+  const dv=sel?.demo&&sel.status==="done"&&!sel.kept?sel:null,dbox=$("gDemo");dbox.hidden=!dv;
+  if(dv)dbox.innerHTML=`<span>Demo of <b>${esc(dv.part?.name||dv.label)}</b>. Like it?</span><span class="row"><button class="btn primary small" type="button" id="gKeep">Add to my build</button><button class="textbtn" type="button" id="gDrop">Discard</button></span>`;
+  $("gKeep")?.addEventListener("click",()=>keepDemo(b,dv));
+  $("gDrop")?.addEventListener("click",()=>dropDemo(b,dv));
+  // what the next version will change
+  const busy=working(g),p=pending(b,busy||null),ready=!!lastDone(g),n=p.added.length+p.removed.length,nx=$("gNext");
+  nx.hidden=!n||!ready||!!dv;
+  if(!nx.hidden)nx.innerHTML=`<span>${busy?"After this one":g.auto?"Updating in a moment":"Next version"}: ${[...p.added.map(m=>"+ "+short(m.name)),...p.removed.map(m=>"− "+short(m.name))].map(esc).join(", ")}</span>`
+    +(busy?"":`<button class="btn small" type="button" id="gMake">Update now${c.update?` · ${c.update} scans`:""}</button>`);
+  $("gMake")?.addEventListener("click",()=>{clearTimeout(autoTimer);makeVersion(b)});
+  $("gAuto").checked=g.auto!==false;
+  for(const v of vs)if(v.status==="working")pollVersion(b,v);
+  if($("gWin").open)drawGarageWin();
+}
+// a demo (from a part card, the guide, or a try in the garage) goes on the list, or away
+function keepDemo(b,v){v.kept=true;v.label=v.label.replace(/^(Demo|Try) · /,"+ ");addPart(b,v.part,true);
+  toast(`Added <b>${esc(short(v.part.name))}</b> to your build`)}
+function dropDemo(b,v){const g=b.garage;g.versions=g.versions.filter(x=>x!==v);(g.feed||[]).forEach(f=>{if(f.vid===v.id)f.dropped=true});
+  g.sel=lastDone(g)?.id||null;saveBuild(b);drawGarage();autoUpdate(b)}
+
+/* ---------- the full garage window ---------- */
+const G_IDEAS=["Bronze mesh wheels","Lower it 20 mm more","Widebody kit","Satin black wrap","Ducktail spoiler","Smoked tail lights"];
+$("gwIdeas").innerHTML=G_IDEAS.map(x=>`<button type="button" class="chip" data-idea="${esc(x)}">${esc(x)}</button>`).join("");
+$("gwIdeas").addEventListener("click",e=>{const c=e.target.closest("[data-idea]");if(c){$("gwIn").value=c.dataset.idea;$("gwIn").focus()}});
+function openGarage(){const b=state.build;if(!b?.garage)return;
+  $("gwView").append($("g3d"));$("gWin").showModal();document.body.style.overflow="hidden";V.showing=null;drawGarage();
+  if(!matchMedia("(pointer:coarse)").matches)$("gwIn").focus()}
+$("gOpen").onclick=openGarage;
+$("gwClose").onclick=()=>$("gWin").close();
+$("gWin").addEventListener("close",()=>{$("gOnWrap").insertBefore($("g3d"),$("gViews"));document.body.style.overflow="";V.showing=null;drawGarage()});
+function drawGarageWin(){
+  const b=state.build,g=b?.garage;if(!g)return;const c=state.garage;
+  $("gwTitle").textContent=[b.car.year,carTitle(b.car)].filter(Boolean).join(" ");
+  $("gwCost").textContent=c.update?` (${c.update} scans each)`:"";
+  $("gwVers").innerHTML=$("gVers").innerHTML;$("gwVers").hidden=!g.versions.length;
+  $("gwLabel").textContent=$("gLabel").textContent;
+  $("gwStat").hidden=$("gStat").hidden;$("gwStat").innerHTML=$("gStat").innerHTML;
+  $("gwEmpty").hidden=!$("g3d").hidden;
+  const busy=working(g);$("gwGo").disabled=!!busy||!lastDone(g);
+  const sel=g.versions.find(v=>v.id===g.sel);
+  $("gwOn").innerHTML=((sel?.status==="done"?sel:lastDone(g))?.mods||[]).map(m=>`<li><b>${esc(m.name)}</b>${m.detail?` · ${esc(m.detail)}`:""}</li>`).join("")||"<li>Stock</li>";
+  $("gwFeed").innerHTML=(g.feed||[]).map(f=>{
+    const v=g.versions.find(x=>x.id===f.vid);let a;
+    if(f.none)a=`<p>${esc(f.note)}</p>`;
+    else{
+      const part=v?.part;
+      const state_=f.dropped?`<span class="note">Discarded</span>`:!v?`<span class="note">${f.note?"":"Couldn't start."}</span>`
+        :v.status==="working"?`<span class="note">Making it… ${v.progress||0}%</span>`
+        :v.status==="failed"?`<span class="gerr">Couldn't be made: ${esc(v.message||"")}</span>`
+        :v.kept?`<span class="done">✓ Added to your list</span>`
+        :`<span class="row"><button class="btn primary small" type="button" data-keep="${v.id}">Add to list</button><button class="textbtn" type="button" data-drop="${v.id}">Discard</button>${g.sel!==v.id?`<button class="textbtn" type="button" data-view="${v.id}">Show it</button>`:""}</span>`;
+      a=`${part?`<span class="gp-cat">${esc(part.category)}</span><b>${esc(part.name)}</b>`:""}${part?.detail?`<p>${esc(part.detail)}</p>`:""}${f.note?`<p>${esc(f.note)}</p>`:""}${state_}`;
+    }
+    return `<div class="gw-q">${esc(f.q)}</div><div class="gw-a">${a}</div>`}).join("");
+}
+$("gwVers").addEventListener("click",e=>{const c=e.target.closest("[data-v]");const b=state.build;if(!c||!b?.garage)return;b.garage.sel=+c.dataset.v;saveBuild(b);drawGarage()});
+$("gwFeed").addEventListener("click",e=>{const b=state.build,g=b?.garage;if(!g)return;
+  const k=e.target.closest("[data-keep]"),d=e.target.closest("[data-drop]"),w=e.target.closest("[data-view]");
+  const v=id=>g.versions.find(x=>x.id===+id);
+  if(k&&v(k.dataset.keep))keepDemo(b,v(k.dataset.keep));else if(d&&v(d.dataset.drop))dropDemo(b,v(d.dataset.drop));
+  else if(w){g.sel=+w.dataset.view;saveBuild(b);drawGarage()}});
+$("gwIn").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!matchMedia("(pointer:coarse)").matches){e.preventDefault();$("gwForm").requestSubmit()}});
+$("gwForm").addEventListener("submit",e=>{e.preventDefault();const b=state.build,t=$("gwIn").value.trim();if(!b?.garage)return;if(!t){$("gwIn").focus();return}
+  const g=b.garage,base=lastDone(g),busy=working(g);$("gwMsg").textContent="";
+  if(busy){$("gwMsg").textContent=`Wait for V${busy.n} to finish first.`;return}
+  if(!base){$("gwMsg").textContent="Your first 3D version isn't ready yet.";return}
+  if(g.versions.some(v=>v.demo&&!v.kept&&v.status==="done")){$("gwMsg").textContent="Add or discard your last try first.";return}
+  $("gwIn").value="";clearTimeout(autoTimer);
+  const f={id:Date.now(),q:t};(g.feed||(g.feed=[])).push(f);
+  runVersion(b,{action:"try",text:t,prev:base.job,car:b.car,paint:g.paint,mods:base.mods,memo:memo(b)},"Try · "+short(t),{demo:true,part:{category:guessCat(t),name:t,detail:""},mods:base.mods,feed:f});
+  requestAnimationFrame(()=>$("gwFeed").lastElementChild?.scrollIntoView({behavior:"smooth",block:"nearest"}));
+});
+$("gVers").addEventListener("click",e=>{const c=e.target.closest("[data-v]");const b=state.build;if(!c||!b?.garage)return;b.garage.sel=+c.dataset.v;saveBuild(b);drawGarage()});
+$("gAuto").onchange=()=>{const b=state.build;if(!b?.garage)return;b.garage.auto=$("gAuto").checked;saveBuild(b);drawGarage();autoUpdate(b)};
+
+// turning it on: optional photos of the car
+let gShots=[];
+function drawShots(){$("gShots").innerHTML=gShots.map((u,i)=>`<figure><img src="${u}" alt="Photo ${i+1} of your car"><button type="button" data-x="${i}" aria-label="Remove photo">×</button></figure>`).join("")}
+$("gShots").addEventListener("click",e=>{const x=e.target.closest("[data-x]");if(x){gShots.splice(+x.dataset.x,1);drawShots()}});
+$("gPhotos").addEventListener("change",async e=>{const fs=[...e.target.files].filter(f=>f.type.startsWith("image/"));e.target.value="";
+  for(const f of fs){if(gShots.length>=3)break;gShots.push(await blobToDataURL(await resize(f,1280,.88)))}drawShots()});
+$("gStart").onclick=async()=>{const b=state.build;if(!b)return;$("gOffErr").textContent="";
+  if(state.accounts&&!state.session){openAcct("signin","Sign in to make a 3D model of your car.");return}
+  const paint=$("gPaintIn").value.trim();
+  b.garage={paint,auto:true,versions:[],sel:null};
+  drawBuild();                                       // part cards get their "Preview in 3D" buttons
+  // version 1 is the car as it is; parts already in the build follow as version 2
+  await runVersion(b,{action:"start",car:b.car,paint,photos:gShots,mods:[],memo:memo(b)},"Your car",{mods:[]});
+  gShots=[];$("gPaintIn").value="";
+};
+// a 3D demo of one part: a version built on the latest one, which the user adds to the build or discards
+function gsay(t){const el=$("gMsg");el.textContent=t||"";if(t){setTab("build");$("garage").scrollIntoView({behavior:"smooth",block:"start"})}}
+function demoPart(b,m){const g=b.garage,base=lastDone(g),busy=working(g);
+  m={category:m.category||guessCat(m.name),name:m.name,detail:m.detail||"",price:m.price||"",query:m.query||"",fits:m.fits||""};
+  if(busy){gsay(`Wait for V${busy.n} to finish, then preview ${short(m.name)}.`);return}
+  if(!base){gsay("Your first 3D version isn't ready yet.");return}
+  if(g.versions.some(v=>v.demo&&!v.kept&&v.status==="done")){gsay("Add or discard the last demo first.");return}
+  const mods=base.mods.filter(x=>x.name!==m.name&&!(ONE_OF.includes(m.category)&&x.category===m.category)).concat([{category:m.category,name:m.name,detail:m.detail}]);
+  clearTimeout(autoTimer);gsay("");
+  runVersion(b,{action:"update",prev:base.job,car:b.car,paint:g.paint,mods,added:[mods[mods.length-1]],removed:[],demo:true,memo:memo(b)},"Demo · "+short(m.name),{demo:true,part:m,mods});
+  setTab("build");$("garage").scrollIntoView({behavior:"smooth",block:"start"})}
+function makeVersion(b){const g=b.garage,p=pending(b),prev=lastDone(g);if(!prev||working(g)||(!p.added.length&&!p.removed.length))return;
+  const label=[...p.added.map(m=>"+ "+short(m.name)),...p.removed.map(m=>"− "+short(m.name))].join(", ");
+  runVersion(b,{action:"update",prev:prev.job,car:b.car,paint:g.paint,mods:seen(b),added:p.added,removed:p.removed,memo:memo(b)},label,{mods:seen(b)})}
+// starting a version: the answer is streamed (blank lines while the guide's AI reads the chat, then one line of JSON)
+async function gpost(body){
+  let res;try{res=await fetch("/api/garage",{method:"POST",headers:{"content-type":"application/json","x-access-code":store.get("spotter-code",""),...authHeader()},body:JSON.stringify(body)})}
+  catch{throw{code:"network"}}
+  const t=await res.text().catch(()=>"");let j={};try{j=JSON.parse(t.trim().split("\n").pop()||"{}")}catch{}
+  if(!res.ok||j.error){if(j.credits)setCredits(j.credits);throw{code:j.code||(t?"api":"cut"),message:j.message,status:j.status||res.status}}
+  return j;
+}
+async function runVersion(b,body,label,o={}){
+  const g=b.garage,v={id:Date.now(),n:g.versions.length+1,label,mods:JSON.parse(JSON.stringify(o.mods||[])),status:"working",step:"brief",progress:0,demo:!!o.demo,part:o.part||null};
+  g.versions.push(v);g.sel=v.id;if(o.feed)o.feed.vid=v.id;saveBuild(b);drawSide();
+  try{
+    const j=await gpost(body);v.step="design";
+    if(j.none){g.versions=g.versions.filter(x=>x!==v);g.sel=lastDone(g)?.id||null;if(o.feed){o.feed.none=true;o.feed.note=j.note}saveBuild(b);drawSide();return}
+    if(j.part){v.part=j.part;v.label="Try · "+short(j.part.name);if(j.mods)v.mods=j.mods;if(o.feed)o.feed.note=j.note||""}
+    if(j.credits)setCredits(j.credits);
+    v.job=j.job;saveBuild(b);pollVersion(b,v);
+  }catch(e){
+    v.status="failed";
+    if(e.code==="no_credits"){const n=body.action==="start"?state.garage.start:state.garage.update;v.message=`you need ${n} scans for this.`;openAcct("account",`You need ${n} scans for this.`,true)}
+    else if(e.code==="signin"){v.message="sign in first.";openAcct("signin","Sign in to make a 3D model of your car.")}
+    else v.message=e.message||ERR[e.code]||"it couldn't be started. Try again.";
+    if(body.action==="start"&&g.versions.length===1)b.garage=null;            // didn't turn on: back to the start
+    saveBuild(b);if(state.build===b){drawBuild();if(!b.garage)$("gOffErr").textContent=`The 3D car couldn't start: ${v.message}`}
+  }
+}
+// checks a version every few seconds until it's done (it carries on if you leave the build)
+state.gpoll=new Set();
+async function pollVersion(b,v){
+  if(!v.job||state.gpoll.has(v.id))return;state.gpoll.add(v.id);
+  try{
+    while(v.status==="working"){
+      await new Promise(r=>setTimeout(r,v.progress>=95?2500:5000));
+      let j;
+      try{j=await api("/api/garage?job="+encodeURIComponent(v.job),{headers:{"x-access-code":store.get("spotter-code","")}})}
+      catch(e){if(!e.status||e.status===429||(e.status>=500&&e.code!=="garage_setup"))continue;v.status="failed";v.message=e.message||ERR[e.code]||"lost track of it.";break}
+      if(j.credits)setCredits(j.credits);
+      if(j.job)v.job=j.job;
+      if(j.views?.length)v.views=j.views;
+      if(j.status==="done"){v.status="done";v.url=j.url;v.progress=100}
+      else if(j.status==="failed"){v.status="failed";v.message=j.message;v.refunded=!!j.refunded}
+      else{v.step=j.step||v.step;v.progress=Math.max(v.progress||0,j.progress||0);v.queued=j.queued||null}
+      saveBuild(b);if(state.build===b&&!$("bChat").hidden)drawSide();
+    }
+  }finally{state.gpoll.delete(v.id);saveBuild(b);
+    // on a phone, in the chat: say the 3D car is ready (on wider screens it's in view)
+    if(state.build===b&&!$("bChat").hidden&&v.status!=="working"&&state.wsTab!=="build"&&!matchMedia("(min-width:980px)").matches)
+      toast(v.status==="done"?(v.demo&&!v.kept?`3D demo of <b>${esc(short(v.part?.name||""))}</b> is ready`:`Your 3D car V${v.n} is ready`):`V${v.n} of the 3D car couldn't be made`,["View",()=>setTab("build")]);
+    if(state.build===b)drawSide();
+    if(v.status==="done")autoUpdate(b)}                  // parts added while it was building go into the next version
+}
+
+// the viewer: three.js, loaded the first time a model is shown
+const V={};
+async function viewer(){
+  if(V.ready)return V.ready;
+  return V.ready=(async()=>{
+    const [THREE,{OrbitControls},{GLTFLoader},{DRACOLoader},{RoomEnvironment}]=await Promise.all([import("three"),import("three/addons/controls/OrbitControls.js"),
+      import("three/addons/loaders/GLTFLoader.js"),import("three/addons/loaders/DRACOLoader.js"),import("three/addons/environments/RoomEnvironment.js")]);
+    const el=$("g3d"),r=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    r.setPixelRatio(Math.min(2,devicePixelRatio||1));r.outputColorSpace=THREE.SRGBColorSpace;r.toneMapping=THREE.ACESFilmicToneMapping;
+    r.shadowMap.enabled=true;el.prepend(r.domElement);
+    const scene=new THREE.Scene(),pm=new THREE.PMREMGenerator(r);scene.environment=pm.fromScene(new RoomEnvironment(r),.04).texture;
+    const cam=new THREE.PerspectiveCamera(32,1,.05,200),ctl=new OrbitControls(cam,r.domElement);
+    r.domElement.style.touchAction="pan-y";
+    Object.assign(ctl,{enableDamping:true,enablePan:false,autoRotate:true,autoRotateSpeed:1.2,maxPolarAngle:Math.PI/2-.03,minDistance:3,maxDistance:16});
+    const sun=new THREE.DirectionalLight(0xffffff,1.6);sun.position.set(4,8,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
+    Object.assign(sun.shadow.camera,{left:-4,right:4,top:4,bottom:-4});scene.add(sun,new THREE.HemisphereLight(0xffffff,0x332a20,.6));
+    const ground=new THREE.Mesh(new THREE.CircleGeometry(6,48),new THREE.ShadowMaterial({opacity:.45}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+    const holder=new THREE.Group();scene.add(holder);
+    const size=()=>{const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;r.setSize(w,h,false);cam.aspect=w/h;
+      cam.fov=w/h<1.25?Math.min(52,32*1.3/(w/h)):32;cam.updateProjectionMatrix()};
+    new ResizeObserver(size).observe(el);size();
+    ctl.addEventListener("start",()=>{ctl.autoRotate=false;$("gSpin").setAttribute("aria-pressed","false")});
+    (function loop(){requestAnimationFrame(loop);if(el.offsetParent===null||document.hidden)return;ctl.update();r.render(scene,cam)})();
+    const loader=new GLTFLoader(),draco=new DRACOLoader();      // compressed models
+    draco.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/");loader.setDRACOLoader(draco);
+    Object.assign(V,{THREE,r,scene,cam,ctl,holder,loader,cache:new Map()});
+    return V;
+  })();
+}
+async function showModel(m){
+  const key=m.url+"#"+(m.turn||0);if(V.showing===key)return;V.showing=key;
+  const msg=$("g3dMsg");msg.hidden=false;msg.textContent="Loading the 3D model…";
+  let v;try{v=await viewer()}catch{msg.textContent="The 3D viewer couldn’t load. Check your connection and reload.";V.showing=null;return}
+  try{
+    let gltf=v.cache.get(m.url);
+    if(!gltf){gltf=await v.loader.loadAsync(m.url);v.cache.set(m.url,gltf)}
+    if(V.showing!==key)return;
+    const T=v.THREE,obj=gltf.scene;
+    obj.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material.envMapIntensity=1.1}}});
+    // stand the car on the floor, centred, about 4.5 m long, its length across the screen
+    obj.position.set(0,0,0);obj.scale.setScalar(1);obj.rotation.set(0,0,0);
+    let bx=new T.Box3().setFromObject(obj),sz=bx.getSize(new T.Vector3());
+    if(sz.z>sz.x)obj.rotation.y=Math.PI/2;
+    obj.rotation.y+=(m.turn||0)*Math.PI/2;
+    bx=new T.Box3().setFromObject(obj);sz=bx.getSize(new T.Vector3());
+    const k=4.5/Math.max(sz.x,sz.z,.001);obj.scale.setScalar(k);
+    bx=new T.Box3().setFromObject(obj);const c=bx.getCenter(new T.Vector3());obj.position.set(-c.x,-bx.min.y,-c.z);
+    v.holder.clear();v.holder.add(obj);
+    const h=bx.max.y-bx.min.y;v.ctl.target.set(0,h*.42,0);v.cam.position.set(4.4,1.8,4.8);v.ctl.update();
+    msg.hidden=true;
+  }catch(e){console.error("3D model",e);V.showing=null;msg.textContent=/404|410|403/.test(String(e?.message||e))?"This model file is gone.":"This model couldn’t be loaded. Try again."}
+}
+const selVersion=()=>{const g=G();return g&&g.versions.find(v=>v.id===g.sel)};
+$("gTurn").onclick=()=>{const g=G(),v=selVersion();const m=v?.status==="done"?v:lastDone(g);if(!m)return;m.turn=((m.turn||0)+1)%4;saveBuild(state.build);showModel(m)};
+$("gSpin").onclick=()=>{if(!V.ctl)return;V.ctl.autoRotate=!V.ctl.autoRotate;$("gSpin").setAttribute("aria-pressed",V.ctl.autoRotate)};
+
+/* ---------- boot ---------- */
+renderExample();drawRecent();
+(async()=>{
+  if(window.claude){                                  // inside Claude: use the viewer’s Claude
+    let s=null;try{s=await window.claude.use("sample")}catch{}
+    if(s){const lim=await s.limits().catch(()=>null);if(lim?.images){state.sample=s;state.mode="claude";if(needsScan())analyze();return}}
+    state.mode="none";if(needsScan())analyze();return;
+  }
+  if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+  // hosted with the server function: the key lives on the server
+  try{
+    const res=await fetch(API_PATH,{cache:"no-store"});
+    const j=res.ok?await res.json():null;
+    if(j)setDonate(j.donateUrl);
+    if(j?.ok){
+      state.mode="server";state.needsCode=!!j.needsCode;
+      state.guideReplies=j.guide?.replies||null;state.garage=j.garage||null;
+      if(j.accounts){state.payments=j.payments;state.promo=j.promo||null;await startAccounts(j.accounts)}
+      if(state.needsCode&&!store.get("spotter-code",""))$("accessForm").hidden=false;
+      if(needsScan())analyze();
+      return;
+    }
+  }catch{}
+  state.mode="api";                                   // no server: your own API key
+  $("settingsBtn").hidden=false;fillSettings();
+  if(!getSettings().key){$("settings").hidden=false;setMsg("Add an API key to start. You only do this once.")}
+  if(needsScan())analyze();
+})();
+</script>
+
+</body>
+</html>
